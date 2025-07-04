@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Cow Configurator (Web Serial)</title>
+  <meta name="cow-configurator-version" content="v1.0.0">
   <style>
 /* Sakura Dark CSS - Inlined for offline use */
 /* $color-text: #dedce5; */
@@ -290,6 +291,7 @@ label, legend, fieldset {
       <span id="offlineLabel" style="display:none; color: #4caf50; font-weight: bold;">Working Offline</span>
       <button id="checkUpdateBtn" type="button" style="display:none;">Check for Update</button>
     </div>
+    <div id="versionFooter" style="position: fixed; bottom: 16px; left: 24px; color: #aaa; font-size: 1.1em; z-index: 1000;">Version: v1.0.0</div>
   </div>
   <input type="file" id="importFile" accept=".json" style="display:none">
   <script>
@@ -480,17 +482,22 @@ label, legend, fieldset {
     checkUpdateBtn.onclick = async () => {
       // Change this URL to your latest HTML file location (e.g., GitHub raw link)
       const latestUrl = 'https://raw.githubusercontent.com/EmbeddedEra/The_Real_Cow_Configurator/refs/heads/main/Cow_USB_Configurator.html';
-      showMsg('Checking for update...', '');
+      const currentVersion = getVersionFromMeta(document);
+      showMsg('Checking for update... (Current: ' + currentVersion + ')', '');
       try {
         const response = await fetch(latestUrl, {cache: 'no-store'});
         if (!response.ok) throw new Error('Could not fetch latest version');
         const latestHtml = await response.text();
-        // Compare with current HTML
-        const currentHtml = document.documentElement.outerHTML;
-        if (normalizeHtml(currentHtml) === normalizeHtml(latestHtml)) {
-          showMsg('You already have the latest version.', 'success');
+        // Parse version from fetched HTML
+        const parser = new DOMParser();
+        const latestDoc = parser.parseFromString(latestHtml, 'text/html');
+        const latestVersion = getVersionFromMeta(latestDoc);
+        if (!latestVersion) throw new Error('No version found in latest file');
+        if (currentVersion === latestVersion) {
+          showMsg('You already have the latest version (' + currentVersion + ').', 'success');
           return;
         }
+        showMsg('New version available! Current: ' + currentVersion + ', Latest: ' + latestVersion, '');
         // Offer to download if different
         const blob = new Blob([latestHtml], {type: 'text/html'});
         const a = document.createElement('a');
@@ -500,15 +507,15 @@ label, legend, fieldset {
         a.click();
         document.body.removeChild(a);
         URL.revokeObjectURL(a.href);
-        showMsg('Latest version downloaded.', 'success');
+        showMsg('Latest version (' + latestVersion + ') downloaded.', 'success');
       } catch (e) {
         showMsg('Could not check for update: ' + e, 'error');
       }
     };
 
-    // Helper to normalize HTML for comparison (ignores whitespace differences)
-    function normalizeHtml(html) {
-      return html.replace(/\s+/g, ' ').trim();
+    function getVersionFromMeta(doc) {
+      const meta = doc.querySelector('meta[name="cow-configurator-version"]');
+      return meta ? meta.getAttribute('content') : '';
     }
 
     function showMsg(msg, type) {
