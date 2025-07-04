@@ -329,6 +329,19 @@ checkUpdateBtn.onclick = async () => {
         showMsg('Could not check for update: ' + e, 'error');
       }
     };
+downloadOfflineBtn.onclick = () => {
+      // Download the current HTML as index.html for offline use
+      const html = document.documentElement.outerHTML;
+      const blob = new Blob([html], {type: 'text/html'});
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'index.html';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(a.href);
+      showMsg('Current page downloaded for offline use.', 'success');
+    };
   </script>
 </body>
 </html>
