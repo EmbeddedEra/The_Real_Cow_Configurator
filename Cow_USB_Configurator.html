@@ -479,7 +479,7 @@ label, legend, fieldset {
 
     checkUpdateBtn.onclick = async () => {
       // Change this URL to your latest HTML file location (e.g., GitHub raw link)
-      const latestUrl = 'https://github.com/EmbeddedEra/The_Real_Cow_Configurator/blob/main/index.html';
+      const latestUrl = 'https://raw.githubusercontent.com/EmbeddedEra/The_Real_Cow_Configurator/main/index.html';
       showMsg('Checking for update...', '');
       try {
         const response = await fetch(latestUrl, {cache: 'no-store'});
