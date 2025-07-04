@@ -479,14 +479,19 @@ label, legend, fieldset {
 
     checkUpdateBtn.onclick = async () => {
       // Change this URL to your latest HTML file location (e.g., GitHub raw link)
-      const latestUrl = 'https://raw.githubusercontent.com/EmbeddedEra/The_Real_Cow_Configurator/main/index.html';
+      const latestUrl = 'https://raw.githubusercontent.com/EmbeddedEra/The_Real_Cow_Configurator/refs/heads/main/Cow_USB_Configurator.html';
       showMsg('Checking for update...', '');
       try {
         const response = await fetch(latestUrl, {cache: 'no-store'});
         if (!response.ok) throw new Error('Could not fetch latest version');
         const latestHtml = await response.text();
-        // Optionally, compare version strings here
-        // For now, just offer to download
+        // Compare with current HTML
+        const currentHtml = document.documentElement.outerHTML;
+        if (normalizeHtml(currentHtml) === normalizeHtml(latestHtml)) {
+          showMsg('You already have the latest version.', 'success');
+          return;
+        }
+        // Offer to download if different
         const blob = new Blob([latestHtml], {type: 'text/html'});
         const a = document.createElement('a');
         a.href = URL.createObjectURL(blob);
@@ -500,6 +505,11 @@ label, legend, fieldset {
         showMsg('Could not check for update: ' + e, 'error');
       }
     };
+
+    // Helper to normalize HTML for comparison (ignores whitespace differences)
+    function normalizeHtml(html) {
+      return html.replace(/\s+/g, ' ').trim();
+    }
 
     function showMsg(msg, type) {
       msgDiv.textContent = msg;
