@@ -285,9 +285,10 @@ label, legend, fieldset {
     </form>
     <div id="msg"></div>
     <div id="browserWarning" style="display:none; color: #ff9800; font-weight: bold; margin-bottom: 1em;"></div>
-    <div id="offlineRow" style="display: flex; align-items: center; gap: 1em; margin-bottom: 1em;">
+    <div id="offlineRow" style="position: fixed; bottom: 24px; right: 32px; z-index: 1000; display: flex; align-items: center; gap: 1em; margin-bottom: 0;">
       <button id="downloadOfflineBtn" type="button">Download for Offline Use</button>
       <span id="offlineLabel" style="display:none; color: #4caf50; font-weight: bold;">Working Offline</span>
+      <button id="checkUpdateBtn" type="button" style="display:none;">Check for Update</button>
     </div>
   </div>
   <input type="file" id="importFile" accept=".json" style="display:none">
@@ -304,6 +305,7 @@ label, legend, fieldset {
     const workingHourInput = document.getElementById('working_hour');
     const downloadOfflineBtn = document.getElementById('downloadOfflineBtn');
     const offlineLabel = document.getElementById('offlineLabel');
+    const checkUpdateBtn = document.getElementById('checkUpdateBtn');
 
     const fields = [
       'address_0','address_1','address_2','address_3','address_4',
@@ -465,24 +467,38 @@ label, legend, fieldset {
     };
 
     downloadOfflineBtn.onclick = () => {
-      // Download index.html and sakura-dark.css for offline use
-      const files = [
-        { name: 'index.html', url: window.location.href },
-        { name: 'sakura-dark.css', url: 'sakura-dark.css' }
-      ];
-      files.forEach(file => {
-        fetch(file.url)
-          .then(response => response.blob())
-          .then(blob => {
-            const a = document.createElement('a');
-            a.href = URL.createObjectURL(blob);
-            a.download = file.name;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(a.href);
-          });
-      });
+      // Download only the current HTML file for offline use
+      const a = document.createElement('a');
+      a.href = window.location.href;
+      a.download = 'Cow_USB_Configurator.html';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(a.href);
+    };
+
+    checkUpdateBtn.onclick = async () => {
+      // Change this URL to your latest HTML file location (e.g., GitHub raw link)
+      const latestUrl = 'https://github.com/EmbeddedEra/The_Real_Cow_Configurator/blob/main/index.html';
+      showMsg('Checking for update...', '');
+      try {
+        const response = await fetch(latestUrl, {cache: 'no-store'});
+        if (!response.ok) throw new Error('Could not fetch latest version');
+        const latestHtml = await response.text();
+        // Optionally, compare version strings here
+        // For now, just offer to download
+        const blob = new Blob([latestHtml], {type: 'text/html'});
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = 'Cow_USB_Configurator.html';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(a.href);
+        showMsg('Latest version downloaded.', 'success');
+      } catch (e) {
+        showMsg('Could not check for update: ' + e, 'error');
+      }
     };
 
     function showMsg(msg, type) {
@@ -505,10 +521,11 @@ label, legend, fieldset {
         connectBtn.disabled = true;
         return;
       }
-      // Show offline label if running from file:// and hide download button
+      // Show offline label and check update button if running from file:// and hide download button
       if (window.location.protocol === 'file:') {
         offlineLabel.style.display = '';
         downloadOfflineBtn.style.display = 'none';
+        checkUpdateBtn.style.display = '';
       }
     };
   </script>
