@@ -296,6 +296,39 @@ label, legend, fieldset {
   <input type="file" id="importFile" accept=".json" style="display:none">
   <script>
 // ...existing code...
+checkUpdateBtn.onclick = async () => {
+      // Use the new URL for update checking
+      const latestUrl = 'https://raw.githubusercontent.com/EmbeddedEra/The_Real_Cow_Configurator/refs/heads/main/index.html';
+      const currentVersion = getVersionFromMeta(document);
+      showMsg('Checking for update... (Current: ' + currentVersion + ')', '');
+      try {
+        const response = await fetch(latestUrl, {cache: 'no-store'});
+        if (!response.ok) throw new Error('Could not fetch latest version');
+        const latestHtml = await response.text();
+        // Parse version from fetched HTML
+        const parser = new DOMParser();
+        const latestDoc = parser.parseFromString(latestHtml, 'text/html');
+        const latestVersion = getVersionFromMeta(latestDoc);
+        if (!latestVersion) throw new Error('No version found in latest file');
+        if (currentVersion === latestVersion) {
+          showMsg('You already have the latest version (' + currentVersion + ').', 'success');
+          return;
+        }
+        showMsg('New version available! Current: ' + currentVersion + ', Latest: ' + latestVersion, '');
+        // Offer to download if different
+        const blob = new Blob([latestHtml], {type: 'text/html'});
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = 'index.html';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(a.href);
+        showMsg('Latest version (' + latestVersion + ') downloaded.', 'success');
+      } catch (e) {
+        showMsg('Could not check for update: ' + e, 'error');
+      }
+    };
   </script>
 </body>
 </html>
