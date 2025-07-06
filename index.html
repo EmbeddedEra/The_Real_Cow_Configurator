@@ -275,13 +275,13 @@ label, legend, fieldset {
         <input id="time_out" type="number" min="0" value="2000" style="flex: 2 0 180px;">
       </div>
       <div class="btn-row">
-        <button type="button" id="saveBtn">Save</button>
-        <button type="button" id="loadBtn">Load</button>
-        <button type="button" id="resetBtn">Reset</button>
+        <button type="button" id="saveBtn">Upload to Board</button>
+        <button type="button" id="loadBtn">Load from Board</button>
+        <button type="button" id="resetBtn">Default Reset</button>
       </div>
       <div class="btn-row">
-        <button type="button" id="exportBtn">Export</button>
-        <button type="button" id="importBtn">Import</button>
+        <button type="button" id="exportBtn">Save Config to PC</button>
+        <button type="button" id="importBtn">Load Confiig from PC</button>
       </div>
     </form>
     <div id="msg"></div>
@@ -495,6 +495,7 @@ label, legend, fieldset {
         if (!latestVersion) throw new Error('No version found in latest file');
         if (currentVersion === latestVersion) {
           showMsg('You already have the latest version (' + currentVersion + ').', 'success');
+          // Do not download if offline and already up to date
           return;
         }
         showMsg('New version available! Current: ' + currentVersion + ', Latest: ' + latestVersion, '');
