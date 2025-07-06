@@ -287,6 +287,7 @@ label, legend, fieldset {
     <div id="msg"></div>
     <div id="browserWarning" style="display:none; color: #ff9800; font-weight: bold; margin-bottom: 1em;"></div>
     <div id="offlineRow" style="position: fixed; bottom: 24px; right: 32px; z-index: 1000; display: flex; align-items: center; gap: 1em; margin-bottom: 0;">
+      <button id="openFlasherBtn" type="button" style="display:none;">Open Flasher</button>
       <button id="downloadOfflineBtn" type="button">Download for Offline Use</button>
       <span id="offlineLabel" style="display:none; color: #4caf50; font-weight: bold;">Working Offline</span>
       <button id="checkUpdateBtn" type="button" style="display:none;">Check for Update</button>
@@ -308,6 +309,7 @@ label, legend, fieldset {
     const downloadOfflineBtn = document.getElementById('downloadOfflineBtn');
     const offlineLabel = document.getElementById('offlineLabel');
     const checkUpdateBtn = document.getElementById('checkUpdateBtn');
+    const openFlasherBtn = document.getElementById('openFlasherBtn');
 
     const fields = [
       'address_0','address_1','address_2','address_3','address_4',
@@ -325,6 +327,7 @@ label, legend, fieldset {
           connectBtn.textContent = 'Disconnect';
           versionLabel.textContent = 'Version: Connecting...';
           showMsg('Connected to serial port.', 'success');
+          openFlasherBtn.style.display = '';
           // Identify device
           const lines = await sendCmd('IDENTIFY', true);
           if (lines.length && lines[0].startsWith('COW_ROBOT_V')) {
@@ -334,10 +337,12 @@ label, legend, fieldset {
           } else {
             versionLabel.textContent = 'Version: Not connected';
             showMsg('Wrong device or no response.', 'error');
+            openFlasherBtn.style.display = 'none';
             await disconnectSerial();
           }
         } catch (e) {
           showMsg('Connection error: ' + e, 'error');
+          openFlasherBtn.style.display = 'none';
           await disconnectSerial();
         }
       } else {
@@ -353,6 +358,7 @@ label, legend, fieldset {
       connectBtn.textContent = 'Connect';
       versionLabel.textContent = 'Version: Not connected';
       showMsg('Disconnected.', 'success');
+      openFlasherBtn.style.display = 'none';
     }
 
     async function sendCmd(cmd, waitResponse=false) {
@@ -544,6 +550,22 @@ label, legend, fieldset {
         offlineLabel.style.display = '';
         downloadOfflineBtn.style.display = 'none';
         checkUpdateBtn.style.display = '';
+      }
+    };
+
+    openFlasherBtn.onclick = async () => {
+      if (!connected) { showMsg('Not connected.', 'error'); return; }
+      try {
+        // Re-acquire writer and reader if needed
+        if (!writer && port && port.writable) writer = port.writable.getWriter();
+        if (!reader && port && port.readable) reader = port.readable.getReader();
+        await sendCmd('BOOT_LOADER', false);
+        setTimeout(async () => {
+          await disconnectSerial();
+          window.open('https://embeddedera.github.io/The_Real_Cow_Flasher/', '_blank');
+        }, 500); // Give device time to enter bootloader
+      } catch (e) {
+        showMsg('Failed to send BOOT_LOADER: ' + e, 'error');
       }
     };
   </script>
