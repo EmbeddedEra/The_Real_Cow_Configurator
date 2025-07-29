@@ -292,7 +292,7 @@ label, legend, fieldset {
       <span id="offlineLabel" style="display:none; color: #4caf50; font-weight: bold;">Working Offline</span>
       <button id="checkUpdateBtn" type="button" style="display:none;">Check for Update</button>
     </div>
-    <div id="versionFooter" style="position: fixed; bottom: 16px; left: 24px; color: #aaa; font-size: 1.1em; z-index: 1000;">Version: v1.0.0</div>
+    <div id="versionFooter" style="position: fixed; bottom: 16px; left: 24px; color: #aaa; font-size: 1.1em; z-index: 1000;">Version:</div>
   </div>
   <input type="file" id="importFile" accept=".json" style="display:none">
   <script>
@@ -359,12 +359,24 @@ label, legend, fieldset {
       versionLabel.textContent = 'Version: Not connected';
       showMsg('Disconnected.', 'success');
       openFlasherBtn.style.display = 'none';
+      // Reset all input values to 0 on disconnect (except working_hour)
+      const inputFields = [
+        'address_0','address_1','address_2','address_3','address_4',
+        'max_drive','max_turn','max_cow','accel','deccel','cow_factor','time_out'
+      ];
+      inputFields.forEach(f => {
+        const el = document.getElementById(f);
+        if (el) el.value = 0;
+      });
+      const workingHourInput = document.getElementById('working_hour');
+      if (workingHourInput) workingHourInput.value = '0.00 h';
     }
 
     async function sendCmd(cmd, waitResponse=false) {
       if (!connected || !writer) { showMsg('Not connected to serial.', 'error'); return []; }
       const framed = `@${cmd};\r\n`;
       await writer.write(new TextEncoder().encode(framed));
+      await delay(100); // Add delay after every command
       if (!waitResponse) return [];
       // Read lines until timeout or empty line
       let lines = [];
@@ -417,22 +429,42 @@ label, legend, fieldset {
       try {
         let addr = [];
         for (let i=0; i<5; ++i) addr.push(parseInt(document.getElementById(`address_${i}`).value));
+        // Validate max_drive, max_turn, max_cow
+        const maxDrive = parseInt(document.getElementById('max_drive').value);
+        const maxTurn = parseInt(document.getElementById('max_turn').value);
+        const maxCow = parseInt(document.getElementById('max_cow').value);
+        // Validate accel, deccel, cow_factor
+        const accel = parseFloat(document.getElementById('accel').value);
+        const deccel = parseFloat(document.getElementById('deccel').value);
+        const cowFactor = parseFloat(document.getElementById('cow_factor').value);
+        let invalidFields = [];
+        if (isNaN(maxDrive) || maxDrive < 0 || maxDrive > 1000) invalidFields.push('max_drive');
+        if (isNaN(maxTurn) || maxTurn < 0 || maxTurn > 1000) invalidFields.push('max_turn');
+        if (isNaN(maxCow) || maxCow < 0 || maxCow > 1000) invalidFields.push('max_cow');
+        if (isNaN(accel) || accel < 0 || accel > 1) invalidFields.push('accel');
+        if (isNaN(deccel) || deccel < 0 || deccel > 1) invalidFields.push('deccel');
+        if (isNaN(cowFactor) || cowFactor < 0 || cowFactor > 1) invalidFields.push('cow_factor');
+        if (invalidFields.length > 0) {
+          let msg = '';
+          let rangeMsg = [];
+          if (invalidFields.includes('max_drive') || invalidFields.includes('max_turn') || invalidFields.includes('max_cow')) {
+            rangeMsg.push('max_drive, max_turn, max_cow: 0-1000');
+          }
+          if (invalidFields.includes('accel') || invalidFields.includes('deccel') || invalidFields.includes('cow_factor')) {
+            rangeMsg.push('0-1');
+          }
+          msg = 'Values for ' + invalidFields.join(', ') + ' must be in range: ' + rangeMsg.join('; ');
+          showMsg(msg, 'error');
+          return;
+        }
         await sendCmd(`ADDR=${addr.join(':')}`);
-        await delay(100);
-        await sendCmd(`MAX_DRIVE=${parseInt(document.getElementById('max_drive').value)}`);
-        await delay(100);
-        await sendCmd(`MAX_TURN=${parseInt(document.getElementById('max_turn').value)}`);
-        await delay(100);
-        await sendCmd(`MAX_COW=${parseInt(document.getElementById('max_cow').value)}`);
-        await delay(100);
-        await sendCmd(`ACCEL=${parseFloat(document.getElementById('accel').value)}`);
-        await delay(100);
-        await sendCmd(`DECCEL=${parseFloat(document.getElementById('deccel').value)}`);
-        await delay(100);
-        await sendCmd(`COW_FACTOR=${parseFloat(document.getElementById('cow_factor').value)}`);
-        await delay(100);
+        await sendCmd(`MAX_DRIVE=${maxDrive}`);
+        await sendCmd(`MAX_TURN=${maxTurn}`);
+        await sendCmd(`MAX_COW=${maxCow}`);
+        await sendCmd(`ACCEL=${accel}`);
+        await sendCmd(`DECCEL=${deccel}`);
+        await sendCmd(`COW_FACTOR=${cowFactor}`);
         await sendCmd(`TIME_OUT=${parseInt(document.getElementById('time_out').value)}`);
-        await delay(100);
         await sendCmd('SAVE');
         showMsg('Configuration saved to STM32 flash.', 'success');
       } catch (e) {
@@ -446,6 +478,8 @@ label, legend, fieldset {
       if (!connected) { showMsg('Not connected.', 'error'); return; }
       await sendCmd('RESET');
       showMsg('Device reset command sent.', 'success');
+      // Reload values from device after reset
+      await loadFromDevice();
     };
 
     document.getElementById('exportBtn').onclick = () => {
@@ -558,11 +592,28 @@ function delay(ms) {
         connectBtn.disabled = true;
         return;
       }
+      // Set all input values to 0 on page load (except working_hour)
+      const inputFields = [
+        'address_0','address_1','address_2','address_3','address_4',
+        'max_drive','max_turn','max_cow','accel','deccel','cow_factor','time_out'
+      ];
+      inputFields.forEach(f => {
+        const el = document.getElementById(f);
+        if (el) el.value = 0;
+      });
+      const workingHourInput = document.getElementById('working_hour');
+      if (workingHourInput) workingHourInput.value = '0.00 h';
       // Show offline label and check update button if running from file:// and hide download button
       if (window.location.protocol === 'file:') {
         offlineLabel.style.display = '';
         downloadOfflineBtn.style.display = 'none';
         checkUpdateBtn.style.display = '';
+      }
+      // Update version in footer from meta tag
+      const versionFooter = document.getElementById('versionFooter');
+      const metaVersion = document.querySelector('meta[name="cow-configurator-version"]');
+      if (versionFooter && metaVersion) {
+        versionFooter.textContent = 'Version: ' + metaVersion.getAttribute('content');
       }
     };
 
