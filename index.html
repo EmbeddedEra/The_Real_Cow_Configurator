@@ -418,13 +418,21 @@ label, legend, fieldset {
         let addr = [];
         for (let i=0; i<5; ++i) addr.push(parseInt(document.getElementById(`address_${i}`).value));
         await sendCmd(`ADDR=${addr.join(':')}`);
+        await delay(100);
         await sendCmd(`MAX_DRIVE=${parseInt(document.getElementById('max_drive').value)}`);
+        await delay(100);
         await sendCmd(`MAX_TURN=${parseInt(document.getElementById('max_turn').value)}`);
+        await delay(100);
         await sendCmd(`MAX_COW=${parseInt(document.getElementById('max_cow').value)}`);
+        await delay(100);
         await sendCmd(`ACCEL=${parseFloat(document.getElementById('accel').value)}`);
+        await delay(100);
         await sendCmd(`DECCEL=${parseFloat(document.getElementById('deccel').value)}`);
+        await delay(100);
         await sendCmd(`COW_FACTOR=${parseFloat(document.getElementById('cow_factor').value)}`);
+        await delay(100);
         await sendCmd(`TIME_OUT=${parseInt(document.getElementById('time_out').value)}`);
+        await delay(100);
         await sendCmd('SAVE');
         showMsg('Configuration saved to STM32 flash.', 'success');
       } catch (e) {
@@ -529,6 +537,11 @@ label, legend, fieldset {
       msgDiv.textContent = msg;
       msgDiv.className = type;
     }
+
+    // Add this helper function near the top of your <script>
+function delay(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
 
     // On load
     window.onload = async () => {
