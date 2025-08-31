@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Cow Configurator (Web Serial)</title>
-  <meta name="cow-configurator-version" content="v1.1.0">
+  <meta name="cow-configurator-version" content="v1.2.0">
   <style>
 /* Sakura Dark CSS - Inlined for offline use */
 /* $color-text: #dedce5; */
@@ -232,6 +232,16 @@ label, legend, fieldset {
     </div>
     <div class="version" id="versionLabel">Version: Not connected</div>
     <form id="configForm" autocomplete="off">
+      <div class="row" style="display:flex; align-items:center; gap: 1em;">
+        <label for="presetSelect" style="flex: 1 0 140px;">Configuration Preset</label>
+        <select id="presetSelect" style="flex: 2 0 180px; width: calc(100% - 8px); margin-left: 8px;"></select>
+      </div>
+  <div class="row" style="display:flex; align-items:center; gap: .5em; margin-top: 0.25em;">
+        <span style="flex: 1 0 140px;"></span>
+        <button type="button" id="applyPresetBtn" title="Apply the selected preset">Apply</button>
+        <button type="button" id="savePresetBtn" title="Save current form values as a new preset">Save as Preset</button>
+        <button type="button" id="deletePresetBtn" title="Delete the selected custom preset">Delete Preset</button>
+      </div>
       <div class="row" style="display: flex; align-items: flex-start; gap: 0em; flex-direction: column;">
         <div style="display: flex; align-items: center; width: 100%; gap: 1em;">
           <label for="address_3" style="flex: 1 0 140px; text-align: left;">address</label>
@@ -311,6 +321,172 @@ label, legend, fieldset {
     
   </p>
   <script>
+    // --- Preset configuration system ---
+    // Contract:
+    // - Preset object shape matches "fields" ids (strings), e.g. { address_0: "67", max_drive: "800", ... }
+    // - Built-in presets are read-only; custom presets are stored in localStorage under key COW_PRESETS_V1
+    // - UI: <select id="presetSelect"> with option values preset ids, and buttons Apply/Save/Delete
+
+    const PRESET_STORAGE_KEY = 'COW_PRESETS_V1';
+    const BUILTIN_PRESETS = {
+      'product_default': {
+        label: 'Product Default',
+        values: {
+          address_0: '67', address_1: '79', address_2: '87', address_3: '65', address_4: '68',
+          max_drive: '1000', max_turn: '1000', max_cow: '500',
+          accel: '0.06', deccel: '0.04', cow_factor: '0.25', time_out: '2000'
+        }
+      },
+      'cow_horse_product': {
+        label: 'Cow Horse Product',
+        values: {
+          address_0: '67', address_1: '79', address_2: '87', address_3: '65', address_4: '68',
+          max_drive: '1000', max_turn: '750', max_cow: '500',
+          accel: '0.05', deccel: '0.06', cow_factor: '0.25', time_out: '2000'
+        }
+      },
+      'cow_retrofit': {
+        label: 'Cow Retrofit',
+        values: {
+          address_0: '67', address_1: '79', address_2: '87', address_3: '65', address_4: '68',
+          max_drive: '1000', max_turn: '1000', max_cow: '800',
+          accel: '0.06', deccel: '0.04', cow_factor: '0.75', time_out: '2000'
+        }
+      }
+    };
+
+    function loadCustomPresets() {
+      try {
+        const raw = localStorage.getItem(PRESET_STORAGE_KEY);
+        if (!raw) return {};
+        const parsed = JSON.parse(raw);
+        return typeof parsed === 'object' && parsed ? parsed : {};
+      } catch { return {}; }
+    }
+
+    function saveCustomPresets(presets) {
+      try { localStorage.setItem(PRESET_STORAGE_KEY, JSON.stringify(presets)); } catch {}
+    }
+
+    function populatePresetSelect() {
+      const select = document.getElementById('presetSelect');
+      if (!select) return;
+      select.innerHTML = '';
+      // Group: Built-in
+      const optGroupBuiltIn = document.createElement('optgroup');
+      optGroupBuiltIn.label = 'Built-in';
+      Object.entries(BUILTIN_PRESETS).forEach(([id, p]) => {
+        const opt = document.createElement('option');
+        opt.value = `builtin:${id}`;
+        opt.textContent = p.label;
+        optGroupBuiltIn.appendChild(opt);
+      });
+      select.appendChild(optGroupBuiltIn);
+      // Group: Custom
+      const custom = loadCustomPresets();
+      const customIds = Object.keys(custom);
+      const optGroupCustom = document.createElement('optgroup');
+      optGroupCustom.label = 'Custom';
+      if (customIds.length === 0) {
+        const opt = document.createElement('option');
+        opt.value = 'custom:__none__';
+        opt.disabled = true;
+        opt.textContent = 'No custom presets';
+        optGroupCustom.appendChild(opt);
+      } else {
+        customIds.forEach(id => {
+          const opt = document.createElement('option');
+          opt.value = `custom:${id}`;
+          opt.textContent = custom[id].label || id;
+          optGroupCustom.appendChild(opt);
+        });
+      }
+      select.appendChild(optGroupCustom);
+      // Default selection to first built-in
+      select.value = select.querySelector('optgroup[label="Built-in"] option')?.value || '';
+    }
+
+    function applyPresetValues(values) {
+      if (!values) return;
+      const ids = [
+        'address_0','address_1','address_2','address_3','address_4',
+        'max_drive','max_turn','max_cow','accel','deccel','cow_factor','time_out'
+      ];
+      ids.forEach(id => {
+        if (values[id] !== undefined) {
+          const el = document.getElementById(id);
+          if (el) el.value = values[id];
+        }
+      });
+      updateAddressMatchLabel?.();
+    }
+
+    function getCurrentFormValues() {
+      const ids = [
+        'address_0','address_1','address_2','address_3','address_4',
+        'max_drive','max_turn','max_cow','accel','deccel','cow_factor','time_out'
+      ];
+      const data = {};
+      ids.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) data[id] = String(el.value);
+      });
+      return data;
+    }
+
+    function onApplyPreset() {
+      const select = document.getElementById('presetSelect');
+      if (!select || !select.value) return;
+      const [scope, id] = select.value.split(':');
+      if (scope === 'builtin') {
+        applyPresetValues(BUILTIN_PRESETS[id]?.values);
+        showMsg('Preset applied: ' + (BUILTIN_PRESETS[id]?.label || id), 'success');
+      } else if (scope === 'custom') {
+        const custom = loadCustomPresets();
+        applyPresetValues(custom[id]?.values);
+        showMsg('Preset applied: ' + (custom[id]?.label || id), 'success');
+      }
+    }
+
+    function onSavePreset() {
+      const name = prompt('Name for this preset:');
+      if (!name) return;
+      const safeId = name.trim().toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_\-]/g, '');
+      if (!safeId) { showMsg('Invalid preset name.', 'error'); return; }
+      const custom = loadCustomPresets();
+      custom[safeId] = { label: name.trim(), values: getCurrentFormValues() };
+      saveCustomPresets(custom);
+      populatePresetSelect();
+      // Select the newly saved preset
+      const select = document.getElementById('presetSelect');
+      select.value = `custom:${safeId}`;
+      showMsg('Preset saved: ' + name.trim(), 'success');
+    }
+
+    function onDeletePreset() {
+      const select = document.getElementById('presetSelect');
+      if (!select || !select.value) return;
+      const [scope, id] = select.value.split(':');
+      if (scope !== 'custom') { showMsg('Only custom presets can be deleted.', 'error'); return; }
+      const custom = loadCustomPresets();
+      if (!custom[id]) { showMsg('Preset not found.', 'error'); return; }
+      if (!confirm(`Delete preset "${custom[id].label || id}"?`)) return;
+      delete custom[id];
+      saveCustomPresets(custom);
+      populatePresetSelect();
+      showMsg('Preset deleted.', 'success');
+    }
+
+    function wirePresetUI() {
+      const applyBtn = document.getElementById('applyPresetBtn');
+      const saveBtn = document.getElementById('savePresetBtn');
+      const delBtn = document.getElementById('deletePresetBtn');
+      if (applyBtn) applyBtn.onclick = onApplyPreset;
+      if (saveBtn) saveBtn.onclick = onSavePreset;
+      if (delBtn) delBtn.onclick = onDeletePreset;
+      populatePresetSelect();
+    }
+
     // Helper to set address fields from quick setup buttons
     function setAddress(arr) {
       for (let i = 0; i < 5; ++i) {
@@ -681,6 +857,8 @@ function delay(ms) {
       if (versionFooter && metaVersion) {
         versionFooter.textContent = 'Version: ' + metaVersion.getAttribute('content');
       }
+  // Wire presets UI
+  wirePresetUI();
     };
 
     openFlasherBtn.onclick = async () => {
