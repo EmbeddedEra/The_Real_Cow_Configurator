@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Cow Configurator (Web Serial)</title>
-  <meta name="cow-configurator-version" content="v1.2.0">
+  <meta name="cow-configurator-version" content="v1.3.0">
   <style>
 /* Sakura Dark CSS - Inlined for offline use */
 /* $color-text: #dedce5; */
@@ -278,6 +278,11 @@ label, legend, fieldset {
           <label for="cow_factor" style="flex: 1 0 140px;">Cow Factor</label>
           <input id="cow_factor" type="number" step="0.01" value="0.25" style="flex: 2 0 180px;" title="Cow factor (0-1, affects movement)">
         </div>
+        <!-- New Sonar Distance setting -->
+        <div style="display: flex; align-items: center; width: 100%; gap: 1em;">
+          <label for="max_sonar_distance" style="flex: 1 0 140px;">Sonar Distance</label>
+          <input id="max_sonar_distance" type="number" min="0" value="0" style="flex: 2 0 180px;" title="Maximum sonar distance (280-3000)">
+        </div>
         <div style="display: flex; align-items: center; width: 100%; gap: 1em;">
           <label for="working_hour" style="flex: 1 0 140px;">Hour Meter</label>
           <input id="working_hour" class="readonly" type="text" readonly value="0.00 h" style="flex: 2 0 180px;" title="Total working hours (read-only)">
@@ -334,7 +339,7 @@ label, legend, fieldset {
         values: {
           address_0: '67', address_1: '79', address_2: '87', address_3: '65', address_4: '68',
           max_drive: '1000', max_turn: '1000', max_cow: '500',
-          accel: '0.06', deccel: '0.04', cow_factor: '0.25', time_out: '2000'
+          accel: '0.06', deccel: '0.04', cow_factor: '0.25', time_out: '2000', max_sonar_distance: '1000'
         }
       },
       'cow_horse_product': {
@@ -342,7 +347,7 @@ label, legend, fieldset {
         values: {
           address_0: '67', address_1: '79', address_2: '87', address_3: '65', address_4: '68',
           max_drive: '1000', max_turn: '750', max_cow: '500',
-          accel: '0.05', deccel: '0.06', cow_factor: '0.25', time_out: '2000'
+          accel: '0.05', deccel: '0.06', cow_factor: '0.25', time_out: '2000', max_sonar_distance: '1000'
         }
       },
       'cow_retrofit': {
@@ -350,7 +355,7 @@ label, legend, fieldset {
         values: {
           address_0: '67', address_1: '79', address_2: '87', address_3: '65', address_4: '68',
           max_drive: '1000', max_turn: '1000', max_cow: '800',
-          accel: '0.06', deccel: '0.04', cow_factor: '0.75', time_out: '2000'
+          accel: '0.06', deccel: '0.04', cow_factor: '0.75', time_out: '2000', max_sonar_distance: '1000'
         }
       }
     };
@@ -546,7 +551,7 @@ label, legend, fieldset {
 
     const fields = [
       'address_0','address_1','address_2','address_3','address_4',
-      'max_drive','max_turn','max_cow','accel','deccel','cow_factor','working_hour','time_out'
+      'max_drive','max_turn','max_cow','accel','deccel','cow_factor','max_sonar_distance','working_hour','time_out'
     ];
 
     connectBtn.onclick = async () => {
@@ -595,7 +600,7 @@ label, legend, fieldset {
       // Reset all input values to 0 on disconnect (except working_hour and fixed address bytes)
       const inputFields = [
         'address_3','address_4',
-        'max_drive','max_turn','max_cow','accel','deccel','cow_factor','time_out'
+        'max_drive','max_turn','max_cow','accel','deccel','cow_factor','max_sonar_distance','time_out'
       ];
       inputFields.forEach(f => {
         const el = document.getElementById(f);
@@ -653,6 +658,8 @@ label, legend, fieldset {
             let totalMin = parseInt(value);
             let hours = (totalMin/60).toFixed(2) + ' h';
             workingHourInput.value = hours;
+          } else if (key === 'max_sonar_distance') {
+            document.getElementById('max_sonar_distance').value = value;
           } else if (fields.includes(key)) {
             document.getElementById(key).value = value;
           }
@@ -675,6 +682,8 @@ label, legend, fieldset {
         const accel = parseFloat(document.getElementById('accel').value);
         const deccel = parseFloat(document.getElementById('deccel').value);
         const cowFactor = parseFloat(document.getElementById('cow_factor').value);
+        // New sonar distance value
+        const sonar = parseInt(document.getElementById('max_sonar_distance').value);
         let invalidFields = [];
         if (isNaN(maxDrive) || maxDrive < 0 || maxDrive > 1000) invalidFields.push('max_drive');
         if (isNaN(maxTurn) || maxTurn < 0 || maxTurn > 1000) invalidFields.push('max_turn');
@@ -682,11 +691,12 @@ label, legend, fieldset {
         if (isNaN(accel) || accel < 0 || accel > 1) invalidFields.push('accel');
         if (isNaN(deccel) || deccel < 0 || deccel > 1) invalidFields.push('deccel');
         if (isNaN(cowFactor) || cowFactor < 0 || cowFactor > 1) invalidFields.push('cow_factor');
+        if (isNaN(sonar) || sonar < 0 || sonar > 1000) invalidFields.push('max_sonar_distance');
         if (invalidFields.length > 0) {
           let msg = '';
           let rangeMsg = [];
-          if (invalidFields.includes('max_drive') || invalidFields.includes('max_turn') || invalidFields.includes('max_cow')) {
-            rangeMsg.push('max_drive, max_turn, max_cow: 0-1000');
+          if (invalidFields.includes('max_drive') || invalidFields.includes('max_turn') || invalidFields.includes('max_cow') || invalidFields.includes('max_sonar_distance')) {
+            rangeMsg.push('max_drive, max_turn, max_cow, max_sonar_distance: 280-3000');
           }
           if (invalidFields.includes('accel') || invalidFields.includes('deccel') || invalidFields.includes('cow_factor')) {
             rangeMsg.push('0-1');
@@ -702,6 +712,7 @@ label, legend, fieldset {
         await sendCmd(`ACCEL=${accel}`);
         await sendCmd(`DECCEL=${deccel}`);
         await sendCmd(`COW_FACTOR=${cowFactor}`);
+        await sendCmd(`MAX_SONAR_DISTANCE=${sonar}`);
         await sendCmd(`TIME_OUT=${parseInt(document.getElementById('time_out').value)}`);
         await sendCmd('SAVE');
         showMsg('Configuration saved to STM32 flash.', 'success');
