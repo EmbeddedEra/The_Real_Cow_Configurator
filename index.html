@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Cow Configurator (Web Serial)</title>
-  <meta name="cow-configurator-version" content="v1.3.0">
+  <meta name="cow-configurator-version" content="v1.3.1">
   <style>
 /* Sakura Dark CSS - Inlined for offline use */
 /* $color-text: #dedce5; */
@@ -335,11 +335,11 @@ label, legend, fieldset {
     const PRESET_STORAGE_KEY = 'COW_PRESETS_V1';
     const BUILTIN_PRESETS = {
       'product_default': {
-        label: 'Product Default',
+        label: 'Cow Product Default',
         values: {
           address_0: '67', address_1: '79', address_2: '87', address_3: '65', address_4: '68',
           max_drive: '1000', max_turn: '1000', max_cow: '500',
-          accel: '0.06', deccel: '0.04', cow_factor: '0.25', time_out: '2000', max_sonar_distance: '1000'
+          accel: '0.04', deccel: '0.07', cow_factor: '0.25', time_out: '2000', max_sonar_distance: '1000'
         }
       },
       'cow_horse_product': {
