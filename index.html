@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Cow Configurator (Web Serial)</title>
-  <meta name="cow-configurator-version" content="v1.3.1">
+  <meta name="cow-configurator-version" content="v1.4.0">
   <style>
 /* Sakura Dark CSS - Inlined for offline use */
 /* $color-text: #dedce5; */
@@ -278,6 +278,10 @@ label, legend, fieldset {
           <label for="cow_factor" style="flex: 1 0 140px;">Cow Factor</label>
           <input id="cow_factor" type="number" step="0.01" value="0.25" style="flex: 2 0 180px;" title="Cow factor (0-1, affects movement)">
         </div>
+        <div style="display: flex; align-items: center; width: 100%; gap: 1em;">
+          <label for="channel" style="flex: 1 0 140px;">Channel</label>
+          <input id="channel" type="number" min="0" max="255" value="0" style="flex: 2 0 180px;" title="Channel value (0-255, hex: 0x4C=76 for Cow 1, 0x33=51 for Cow 2)">
+        </div>
         <!-- New Sonar Distance setting -->
         <div style="display: flex; align-items: center; width: 100%; gap: 1em;">
           <label for="max_sonar_distance" style="flex: 1 0 140px;">Sonar Distance</label>
@@ -315,10 +319,10 @@ label, legend, fieldset {
   <input type="file" id="importFile" accept=".json" style="display:none">
   <p style="margin-top:1em; color:#4caf50; background:#222; padding:1.1em; border-radius:6px;">
     <strong>Note:</strong> For quick setup, use these address values:<br>
-    <b>Cow 1 address:</b> <code id="cow1_addr">65 68</code>
-    <button type="button" style="margin-left:0.7em;" onclick="setAddress([67,79,87,65,68])">Use</button><br>
-    <b>Cow 2 address:</b> <code id="cow2_addr">51 49</code>
-    <button type="button" style="margin-left:0.7em;" onclick="setAddress([67,79,87,51,49])">Use</button>
+    <b>Cow 1 address:</b> <code id="cow1_addr">65 68</code><b>Channel:</b><code id="cow1_channel">76</code>
+    <button type="button" style="margin-left:0.7em;" onclick="setAddress([67,79,87,65,68], 76)">Use</button><br>
+    <b>Cow 2 address:</b> <code id="cow2_addr">51 49</code><b>Channel:</b><code id="cow2_channel">51</code>
+    <button type="button" style="margin-left:0.7em;" onclick="setAddress([67,79,87,51,49], 51)">Use</button>
   </p>
   <p style="margin-top:1em; color:#ff9800; background:#333; padding:1em; border-radius:6px;">
     <strong>Having trouble connecting or with USB drivers?</strong><br>
@@ -339,7 +343,7 @@ label, legend, fieldset {
         values: {
           address_0: '67', address_1: '79', address_2: '87', address_3: '65', address_4: '68',
           max_drive: '1000', max_turn: '1000', max_cow: '500',
-          accel: '0.04', deccel: '0.07', cow_factor: '0.25', time_out: '2000', max_sonar_distance: '1000'
+          accel: '0.04', deccel: '0.07', cow_factor: '0.25', channel: '76', time_out: '2000', max_sonar_distance: '1000'
         }
       },
       'cow_horse_product': {
@@ -347,7 +351,7 @@ label, legend, fieldset {
         values: {
           address_0: '67', address_1: '79', address_2: '87', address_3: '65', address_4: '68',
           max_drive: '1000', max_turn: '750', max_cow: '500',
-          accel: '0.05', deccel: '0.06', cow_factor: '0.25', time_out: '2000', max_sonar_distance: '1000'
+          accel: '0.05', deccel: '0.06', cow_factor: '0.25', channel: '76', time_out: '2000', max_sonar_distance: '1000'
         }
       },
       'cow_retrofit': {
@@ -355,7 +359,7 @@ label, legend, fieldset {
         values: {
           address_0: '67', address_1: '79', address_2: '87', address_3: '65', address_4: '68',
           max_drive: '1000', max_turn: '1000', max_cow: '800',
-          accel: '0.06', deccel: '0.04', cow_factor: '0.75', time_out: '2000', max_sonar_distance: '1000'
+          accel: '0.06', deccel: '0.04', cow_factor: '0.75', channel: '76', time_out: '2000', max_sonar_distance: '1000'
         }
       }
     };
@@ -415,7 +419,7 @@ label, legend, fieldset {
       if (!values) return;
       const ids = [
         'address_0','address_1','address_2','address_3','address_4',
-        'max_drive','max_turn','max_cow','accel','deccel','cow_factor','time_out'
+        'max_drive','max_turn','max_cow','accel','deccel','cow_factor','channel','time_out','max_sonar_distance'
       ];
       ids.forEach(id => {
         if (values[id] !== undefined) {
@@ -429,7 +433,7 @@ label, legend, fieldset {
     function getCurrentFormValues() {
       const ids = [
         'address_0','address_1','address_2','address_3','address_4',
-        'max_drive','max_turn','max_cow','accel','deccel','cow_factor','time_out'
+        'max_drive','max_turn','max_cow','accel','deccel','cow_factor','channel','time_out','max_sonar_distance'
       ];
       const data = {};
       ids.forEach(id => {
@@ -493,10 +497,14 @@ label, legend, fieldset {
     }
 
     // Helper to set address fields from quick setup buttons
-    function setAddress(arr) {
+    function setAddress(arr, channel) {
       for (let i = 0; i < 5; ++i) {
         const el = document.getElementById('address_' + i);
         if (el) el.value = arr[i];
+      }
+      if (channel !== undefined) {
+        const channelEl = document.getElementById('channel');
+        if (channelEl) channelEl.value = channel;
       }
       updateAddressMatchLabel();
     }
@@ -551,7 +559,7 @@ label, legend, fieldset {
 
     const fields = [
       'address_0','address_1','address_2','address_3','address_4',
-      'max_drive','max_turn','max_cow','accel','deccel','cow_factor','max_sonar_distance','working_hour','time_out'
+      'max_drive','max_turn','max_cow','accel','deccel','cow_factor','channel','max_sonar_distance','working_hour','time_out'
     ];
 
     connectBtn.onclick = async () => {
@@ -568,10 +576,15 @@ label, legend, fieldset {
           openFlasherBtn.style.display = '';
           // Identify device
           const lines = await sendCmd('IDENTIFY', true);
-          if (lines.length && lines[0].startsWith('COW_ROBOT_V')) {
+          if (lines.length && (lines[0].startsWith('COW_ROBOT_V') || lines[0].startsWith('COW_REMOTE_V'))) {
             versionLabel.textContent = 'Version: ' + lines[0];
             showMsg('Device identified.', 'success');
-            await loadFromDevice();
+            // Only load config from COW_ROBOT, not COW_REMOTE
+            if (lines[0].startsWith('COW_ROBOT_V')) {
+              await loadFromDevice();
+            } else {
+              showMsg('Remote connected. Configure and upload settings.', 'success');
+            }
           } else {
             versionLabel.textContent = 'Version: Not connected';
             showMsg('Wrong device or no response.', 'error');
@@ -600,7 +613,7 @@ label, legend, fieldset {
       // Reset all input values to 0 on disconnect (except working_hour and fixed address bytes)
       const inputFields = [
         'address_3','address_4',
-        'max_drive','max_turn','max_cow','accel','deccel','cow_factor','max_sonar_distance','time_out'
+        'max_drive','max_turn','max_cow','accel','deccel','cow_factor','channel','max_sonar_distance','time_out'
       ];
       inputFields.forEach(f => {
         const el = document.getElementById(f);
@@ -660,6 +673,8 @@ label, legend, fieldset {
             workingHourInput.value = hours;
           } else if (key === 'max_sonar_distance') {
             document.getElementById('max_sonar_distance').value = value;
+          } else if (key === 'channel') {
+            document.getElementById('channel').value = value;
           } else if (fields.includes(key)) {
             document.getElementById(key).value = value;
           }
@@ -684,6 +699,7 @@ label, legend, fieldset {
         const cowFactor = parseFloat(document.getElementById('cow_factor').value);
         // New sonar distance value
         const sonar = parseInt(document.getElementById('max_sonar_distance').value);
+        const channel = parseInt(document.getElementById('channel').value);
         let invalidFields = [];
         if (isNaN(maxDrive) || maxDrive < 0 || maxDrive > 1000) invalidFields.push('max_drive');
         if (isNaN(maxTurn) || maxTurn < 0 || maxTurn > 1000) invalidFields.push('max_turn');
@@ -691,6 +707,7 @@ label, legend, fieldset {
         if (isNaN(accel) || accel < 0 || accel > 1) invalidFields.push('accel');
         if (isNaN(deccel) || deccel < 0 || deccel > 1) invalidFields.push('deccel');
         if (isNaN(cowFactor) || cowFactor < 0 || cowFactor > 1) invalidFields.push('cow_factor');
+        if (isNaN(channel) || channel < 0 || channel > 255) invalidFields.push('channel');
         if (isNaN(sonar) || sonar < 0 || sonar > 1000) invalidFields.push('max_sonar_distance');
         if (invalidFields.length > 0) {
           let msg = '';
@@ -699,7 +716,10 @@ label, legend, fieldset {
             rangeMsg.push('max_drive, max_turn, max_cow, max_sonar_distance: 280-3000');
           }
           if (invalidFields.includes('accel') || invalidFields.includes('deccel') || invalidFields.includes('cow_factor')) {
-            rangeMsg.push('0-1');
+            rangeMsg.push('accel, deccel, cow_factor: 0-1');
+          }
+          if (invalidFields.includes('channel')) {
+            rangeMsg.push('channel: 0-255');
           }
           msg = 'Values for ' + invalidFields.join(', ') + ' must be in range: ' + rangeMsg.join('; ');
           showMsg(msg, 'error');
@@ -712,6 +732,7 @@ label, legend, fieldset {
         await sendCmd(`ACCEL=${accel}`);
         await sendCmd(`DECCEL=${deccel}`);
         await sendCmd(`COW_FACTOR=${cowFactor}`);
+        await sendCmd(`CHANNEL=${channel}`);
         await sendCmd(`MAX_SONAR_DISTANCE=${sonar}`);
         await sendCmd(`TIME_OUT=${parseInt(document.getElementById('time_out').value)}`);
         await sendCmd('SAVE');
@@ -844,7 +865,7 @@ function delay(ms) {
       // Set all input values to 0 on page load (except working_hour and fixed address bytes)
       const inputFields = [
         'address_3','address_4',
-        'max_drive','max_turn','max_cow','accel','deccel','cow_factor','time_out'
+        'max_drive','max_turn','max_cow','accel','deccel','cow_factor','channel','time_out'
       ];
       inputFields.forEach(f => {
         const el = document.getElementById(f);
