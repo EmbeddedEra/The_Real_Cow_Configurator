@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Cow Configurator (Web Serial)</title>
   <meta name="cow-configurator-version" content="v1.4.0">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
 /* Sakura Dark CSS - Inlined for offline use */
 /* $color-text: #dedce5; */
@@ -337,7 +338,35 @@ label, legend, fieldset {
       </div>
       <div id="debugLog" style="background: #0a0a0a; border: 1px solid #333; border-radius: 4px; padding: 1em; height: 200px; overflow-y: auto; font-family: monospace; font-size: 0.85em; color: #0f0; white-space: pre-wrap; word-wrap: break-word;"></div>
     </div>
-    <button type="button" id="showDebugBtn" style="position: fixed; bottom: 24px; left: 32px; z-index: 999; padding: 8px 12px; font-size: 0.9em;">Show Debug</button>
+    <div id="sonarPanel" style="display:none; margin-top: 2em; background: #1a1a1a; border: 1px solid #555; border-radius: 6px; padding: 1em;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1em;">
+        <h3 style="margin: 0;">Sonar Monitor</h3>
+        <div style="display: flex; gap: 0.5em;">
+          <button type="button" id="sonarStartBtn" style="padding: 5px 10px; font-size: 0.9em; background: #4caf50; color: white;">Start Reading</button>
+          <button type="button" id="sonarStopBtn" style="padding: 5px 10px; font-size: 0.9em; background: #f44336; color: white; display:none;">Stop Reading</button>
+          <button type="button" id="sonarCloseBtn" style="padding: 5px 10px; font-size: 0.9em;">Close</button>
+        </div>
+      </div>
+      <div style="background: #0a0a0a; border: 1px solid #333; border-radius: 4px; padding: 1em;">
+        <canvas id="sonarChart" style="max-height: 300px;"></canvas>
+      </div>
+      <div style="margin-top: 1em; padding: 1em; background: #0a0a0a; border: 1px solid #333; border-radius: 4px;">
+        <div style="display: flex; justify-content: space-around; gap: 2em;">
+          <div style="text-align: center;">
+            <div style="font-size: 0.85em; color: #999; margin-bottom: 0.3em;">Raw Sonar</div>
+            <div style="font-size: 2em; color: #0f0; font-weight: bold; font-family: monospace;" id="sonarRawValue">--</div>
+            <div style="font-size: 0.85em; color: #999;">mm</div>
+          </div>
+          <div style="text-align: center;">
+            <div style="font-size: 0.85em; color: #999; margin-bottom: 0.3em;">Filtered Sonar</div>
+            <div style="font-size: 2em; color: #0ff; font-weight: bold; font-family: monospace;" id="sonarFilteredValue">--</div>
+            <div style="font-size: 0.85em; color: #999;">mm</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <button type="button" id="showDebugBtn" style="position: fixed; bottom: 70px; left: 32px; z-index: 999; padding: 8px 12px; font-size: 0.9em; background: #FF9800; color: white;">Show Debug</button>
+    <button type="button" id="showSonarBtn" style="position: fixed; bottom: 120px; left: 32px; z-index: 999; padding: 8px 12px; font-size: 0.9em; display:none; background: #2196F3; color: white;">Show Sonar</button>
     <div id="offlineRow" style="position: fixed; bottom: 24px; right: 32px; z-index: 1000; display: flex; align-items: center; gap: 1em; margin-bottom: 0;">
       <button id="openFlasherBtn" type="button" style="display:none;">Open Flasher</button>
       <button id="downloadOfflineBtn" type="button">Download for Offline Use</button>
@@ -615,9 +644,10 @@ label, legend, fieldset {
           if (lines.length && (lines[0].startsWith('COW_ROBOT_V') || lines[0].startsWith('COW_REMOTE_V'))) {
             versionLabel.textContent = 'Version: ' + lines[0];
             showMsg('Device identified.', 'success');
-            // Only load config from COW_ROBOT, not COW_REMOTE
+            // Show sonar button when connected to COW_ROBOT
             if (lines[0].startsWith('COW_ROBOT_V')) {
               await loadFromDevice();
+              document.getElementById('showSonarBtn').style.display = '';
             } else {
               showMsg('Remote connected. Configure and upload settings.', 'success');
             }
@@ -638,6 +668,8 @@ label, legend, fieldset {
     };
 
     async function disconnectSerial() {
+      // Stop sonar reading if active
+      if (sonarReadingActive) stopSonarReading();
       if (reader) { try { await reader.cancel(); } catch {} reader = null; }
       if (writer) { try { writer.releaseLock(); } catch {} writer = null; }
       if (port) { try { await port.close(); } catch {} port = null; }
@@ -646,6 +678,8 @@ label, legend, fieldset {
       versionLabel.textContent = 'Version: Not connected';
       showMsg('Disconnected.', 'success');
       openFlasherBtn.style.display = 'none';
+      document.getElementById('showSonarBtn').style.display = 'none';
+      document.getElementById('sonarPanel').style.display = 'none';
       // Reset all input values to 0 on disconnect (except working_hour and fixed address bytes)
       const inputFields = [
         'address_3','address_4',
@@ -698,6 +732,142 @@ label, legend, fieldset {
         }
       }
       return result;
+    }
+
+    // Sonar monitoring variables
+    let sonarReadingActive = false;
+    let sonarReadInterval = null;
+    let sonarChart = null;
+    let sonarData = { timestamps: [], raw: [], filtered: [] };
+    const SONAR_HISTORY_SECONDS = 60;
+    const SONAR_READ_INTERVAL = 500; // milliseconds
+
+    function initSonarChart() {
+      const ctx = document.getElementById('sonarChart').getContext('2d');
+      if (sonarChart) sonarChart.destroy();
+      sonarChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: [],
+          datasets: [
+            {
+              label: 'Raw Sonar',
+              data: [],
+              borderColor: '#0f0',
+              backgroundColor: 'rgba(0, 255, 0, 0.1)',
+              borderWidth: 2,
+              fill: false,
+              pointRadius: 0,
+              tension: 0.1
+            },
+            {
+              label: 'Filtered Sonar',
+              data: [],
+              borderColor: '#0ff',
+              backgroundColor: 'rgba(0, 255, 255, 0.1)',
+              borderWidth: 2,
+              fill: false,
+              pointRadius: 0,
+              tension: 0.1
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          animation: false,
+          plugins: {
+            legend: {
+              labels: { color: '#c9c9c9' },
+              display: true
+            }
+          },
+          scales: {
+            x: {
+              display: true,
+              grid: { color: '#333' },
+              ticks: { 
+                color: '#999',
+                maxTicksLimit: 12
+              },
+              title: { display: true, text: 'Time (seconds ago)', color: '#c9c9c9' },
+              min: 0,
+              max: SONAR_HISTORY_SECONDS
+            },
+            y: {
+              display: true,
+              grid: { color: '#333' },
+              ticks: { 
+                color: '#999',
+                callback: function(value) {
+                  return value.toLocaleString();
+                }
+              },
+              title: { display: true, text: 'Distance (mm)', color: '#c9c9c9' },
+              beginAtZero: true,
+              suggestedMin: 0,
+              suggestedMax: 4500
+            }
+          }
+        }
+      });
+    }
+
+    function updateSonarChart() {
+      if (!sonarChart) return;
+      const now = Date.now();
+      // Remove old data points (older than 60 seconds)
+      while (sonarData.timestamps.length > 0 && (now - sonarData.timestamps[0]) > SONAR_HISTORY_SECONDS * 1000) {
+        sonarData.timestamps.shift();
+        sonarData.raw.shift();
+        sonarData.filtered.shift();
+      }
+      // Update chart - show time from oldest (0) to newest (up to 60 seconds)
+      const oldestTime = sonarData.timestamps.length > 0 ? sonarData.timestamps[0] : now;
+      sonarChart.data.labels = sonarData.timestamps.map(t => ((t - oldestTime) / 1000).toFixed(1));
+      sonarChart.data.datasets[0].data = sonarData.raw;
+      sonarChart.data.datasets[1].data = sonarData.filtered;
+      sonarChart.update('none');
+    }
+
+    async function startSonarReading() {
+      if (sonarReadingActive || !connected) return;
+      sonarReadingActive = true;
+      sonarData = { timestamps: [], raw: [], filtered: [] };
+      initSonarChart();
+      document.getElementById('sonarStartBtn').style.display = 'none';
+      document.getElementById('sonarStopBtn').style.display = '';
+      debugLog('Sonar reading started');
+      
+      sonarReadInterval = setInterval(async () => {
+        if (!sonarReadingActive || !connected) return;
+        const lines = await sendCmd('SONAR_READ', true);
+        lines.forEach(line => {
+          if (line.includes('SONAR_RAW') && line.includes('FILTERED')) {
+            // Parse: SONAR_RAW=1234 FILTERED=1230
+            const rawMatch = line.match(/SONAR_RAW=(\d+)/);
+            const filtMatch = line.match(/FILTERED=(\d+)/);
+            if (rawMatch && filtMatch) {
+              const raw = parseInt(rawMatch[1]);
+              const filt = parseInt(filtMatch[1]);
+              sonarData.timestamps.push(Date.now());
+              sonarData.raw.push(raw);
+              sonarData.filtered.push(filt);
+              document.getElementById('sonarRawValue').textContent = raw;
+              document.getElementById('sonarFilteredValue').textContent = filt;
+              updateSonarChart();
+            }
+          }
+        });
+      }, SONAR_READ_INTERVAL);
+    }
+
+    function stopSonarReading() {
+      sonarReadingActive = false;
+      if (sonarReadInterval) clearInterval(sonarReadInterval);
+      document.getElementById('sonarStartBtn').style.display = '';
+      document.getElementById('sonarStopBtn').style.display = 'none';
+      debugLog('Sonar reading stopped');
     }
 
     // Delay between serial commands (in milliseconds)
@@ -1021,22 +1191,40 @@ function delay(ms) {
     };
 
     // Debug panel controls
-    document.getElementById('showDebugBtn').onclick = () => {
-      document.getElementById('debugPanel').style.display = '';
-      document.getElementById('showDebugBtn').style.display = 'none';
-      DEBUG_MODE = true;
-      debugLog('Debug mode enabled');
-    };
+    const showDebugBtn = document.getElementById('showDebugBtn');
+    if (showDebugBtn) {
+      showDebugBtn.onclick = () => {
+        document.getElementById('debugPanel').style.display = '';
+        showDebugBtn.style.display = 'none';
+        DEBUG_MODE = true;
+        debugLog('Debug mode enabled');
+      };
+    }
 
     document.getElementById('debugToggleBtn').onclick = () => {
       document.getElementById('debugPanel').style.display = 'none';
-      document.getElementById('showDebugBtn').style.display = '';
+      if (showDebugBtn) showDebugBtn.style.display = '';
       DEBUG_MODE = false;
     };
 
     document.getElementById('debugClearBtn').onclick = () => {
       document.getElementById('debugLog').textContent = '';
     };
+
+    // Sonar panel controls
+    document.getElementById('showSonarBtn').onclick = () => {
+      document.getElementById('sonarPanel').style.display = '';
+      document.getElementById('showSonarBtn').style.display = 'none';
+    };
+
+    document.getElementById('sonarCloseBtn').onclick = () => {
+      stopSonarReading();
+      document.getElementById('sonarPanel').style.display = 'none';
+      document.getElementById('showSonarBtn').style.display = '';
+    };
+
+    document.getElementById('sonarStartBtn').onclick = startSonarReading;
+    document.getElementById('sonarStopBtn').onclick = stopSonarReading;
   </script>
 </body>
 </html>
