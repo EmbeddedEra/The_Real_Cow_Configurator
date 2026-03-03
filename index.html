@@ -309,6 +309,14 @@ label, legend, fieldset {
           <input id="sensor_alpha" type="number" step="0.01" min="0" max="1" value="0" style="flex: 2 0 180px;" title="Sensor alpha value (0-1)">
         </div>
         <div style="display: flex; align-items: center; width: 100%; gap: 1em;">
+          <label for="coast" style="flex: 1 0 140px;">Coast</label>
+          <input id="coast" type="number" min="0" max="1" value="0" style="flex: 2 0 180px;" title="Coast mode (0 or 1)">
+        </div>
+        <div style="display: flex; align-items: center; width: 100%; gap: 1em;">
+          <label for="coast_threshold" style="flex: 1 0 140px;">Coast Threshold</label>
+          <input id="coast_threshold" type="number" min="1" max="100" value="50" style="flex: 2 0 180px;" title="Coast threshold value (1-100)">
+        </div>
+        <div style="display: flex; align-items: center; width: 100%; gap: 1em;">
           <label for="working_hour" style="flex: 1 0 140px;">Hour Meter</label>
           <input id="working_hour" class="readonly" type="text" readonly value="0.00 h" style="flex: 2 0 180px;" title="Total working hours (read-only)">
         </div>
@@ -365,6 +373,33 @@ label, legend, fieldset {
         </div>
       </div>
     </div>
+    <div id="motorStatePanel" style="display:none; margin-top: 2em; background: #1a1a1a; border: 1px solid #555; border-radius: 6px; padding: 1em;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1em;">
+        <h3 style="margin: 0;">Motor State Monitor</h3>
+        <div style="display: flex; gap: 0.5em;">
+          <button type="button" id="motorStartBtn" style="padding: 5px 10px; font-size: 0.9em; background: #4caf50; color: white;">Start Reading</button>
+          <button type="button" id="motorStopBtn" style="padding: 5px 10px; font-size: 0.9em; background: #f44336; color: white; display:none;">Stop Reading</button>
+          <button type="button" id="motorCloseBtn" style="padding: 5px 10px; font-size: 0.9em;">Close</button>
+        </div>
+      </div>
+      <div style="margin-top: 1em; padding: 1em; background: #0a0a0a; border: 1px solid #333; border-radius: 4px;">
+        <div style="display: flex; justify-content: space-around; gap: 2em;">
+          <div style="text-align: center;">
+            <div style="font-size: 0.85em; color: #999; margin-bottom: 0.3em;">Motor Right</div>
+            <div style="font-size: 2em; color: #0f0; font-weight: bold; font-family: monospace;" id="motorRightValue">--</div>
+          </div>
+          <div style="text-align: center;">
+            <div style="font-size: 0.85em; color: #999; margin-bottom: 0.3em;">Motor Left</div>
+            <div style="font-size: 2em; color: #0ff; font-weight: bold; font-family: monospace;" id="motorLeftValue">--</div>
+          </div>
+          <div style="text-align: center;">
+            <div style="font-size: 0.85em; color: #999; margin-bottom: 0.3em;">Motor Cow</div>
+            <div style="font-size: 2em; color: #ffff00; font-weight: bold; font-family: monospace;" id="motorCowValue">--</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <button type="button" id="showMotorStateBtn" style="position: fixed; bottom: 170px; left: 32px; z-index: 999; padding: 8px 12px; font-size: 0.9em; display:none; background: #9C27B0; color: white;">Show Motor State</button>
     <button type="button" id="showDebugBtn" style="position: fixed; bottom: 70px; left: 32px; z-index: 999; padding: 8px 12px; font-size: 0.9em; background: #FF9800; color: white;">Show Debug</button>
     <button type="button" id="showSonarBtn" style="position: fixed; bottom: 120px; left: 32px; z-index: 999; padding: 8px 12px; font-size: 0.9em; display:none; background: #2196F3; color: white;">Show Sonar</button>
     <div id="offlineRow" style="position: fixed; bottom: 24px; right: 32px; z-index: 1000; display: flex; align-items: center; gap: 1em; margin-bottom: 0;">
@@ -403,7 +438,7 @@ label, legend, fieldset {
           address_0: '67', address_1: '79', address_2: '87', address_3: '65', address_4: '68',
           max_drive: '1000', max_turn: '1000', max_cow: '500',
           accel: '0.04', deccel: '0.07', cow_factor: '0.25', channel: '76', time_out: '2000', max_sonar_distance: '1000',
-          min_sonar_distance: '0', filtered_sonar: '0', stop_mode: '0', fixed_stop_threshold: '0', sensor_alpha: '0'
+          min_sonar_distance: '0', filtered_sonar: '0', stop_mode: '0', fixed_stop_threshold: '0', sensor_alpha: '0', coast: '0', coast_threshold: '50'
         }
       },
       'cow_horse_product': {
@@ -412,7 +447,7 @@ label, legend, fieldset {
           address_0: '67', address_1: '79', address_2: '87', address_3: '65', address_4: '68',
           max_drive: '1000', max_turn: '750', max_cow: '200',
           accel: '0.05', deccel: '0.12', cow_factor: '0.5', channel: '76', time_out: '2000', max_sonar_distance: '1000',
-          min_sonar_distance: '0', filtered_sonar: '0', stop_mode: '0', fixed_stop_threshold: '0', sensor_alpha: '0'
+          min_sonar_distance: '0', filtered_sonar: '0', stop_mode: '0', fixed_stop_threshold: '0', sensor_alpha: '0', coast: '0', coast_threshold: '50'
         }
       },
       'cow_retrofit': {
@@ -421,7 +456,7 @@ label, legend, fieldset {
           address_0: '67', address_1: '79', address_2: '87', address_3: '65', address_4: '68',
           max_drive: '1000', max_turn: '1000', max_cow: '800',
           accel: '0.06', deccel: '0.04', cow_factor: '0.75', channel: '76', time_out: '2000', max_sonar_distance: '1000',
-          min_sonar_distance: '0', filtered_sonar: '0', stop_mode: '0', fixed_stop_threshold: '0', sensor_alpha: '0'
+          min_sonar_distance: '0', filtered_sonar: '0', stop_mode: '0', fixed_stop_threshold: '0', sensor_alpha: '0', coast: '0', coast_threshold: '50'
         }
       }
     };
@@ -482,7 +517,7 @@ label, legend, fieldset {
       const ids = [
         'address_0','address_1','address_2','address_3','address_4',
         'max_drive','max_turn','max_cow','accel','deccel','cow_factor','channel','time_out','max_sonar_distance',
-        'min_sonar_distance','filtered_sonar','stop_mode','fixed_stop_threshold','sensor_alpha'
+        'min_sonar_distance','filtered_sonar','stop_mode','fixed_stop_threshold','sensor_alpha','coast','coast_threshold'
       ];
       ids.forEach(id => {
         if (values[id] !== undefined) {
@@ -497,7 +532,7 @@ label, legend, fieldset {
       const ids = [
         'address_0','address_1','address_2','address_3','address_4',
         'max_drive','max_turn','max_cow','accel','deccel','cow_factor','channel','time_out','max_sonar_distance',
-        'min_sonar_distance','filtered_sonar','stop_mode','fixed_stop_threshold','sensor_alpha'
+        'min_sonar_distance','filtered_sonar','stop_mode','fixed_stop_threshold','sensor_alpha','coast','coast_threshold'
       ];
       const data = {};
       ids.forEach(id => {
@@ -624,7 +659,7 @@ label, legend, fieldset {
     const fields = [
       'address_0','address_1','address_2','address_3','address_4',
       'max_drive','max_turn','max_cow','accel','deccel','cow_factor','channel','max_sonar_distance',
-      'min_sonar_distance','filtered_sonar','stop_mode','fixed_stop_threshold','sensor_alpha','working_hour','time_out'
+      'min_sonar_distance','filtered_sonar','stop_mode','fixed_stop_threshold','sensor_alpha','coast','coast_threshold','working_hour','time_out'
     ];
 
     connectBtn.onclick = async () => {
@@ -648,6 +683,7 @@ label, legend, fieldset {
             if (lines[0].startsWith('COW_ROBOT_V')) {
               await loadFromDevice();
               document.getElementById('showSonarBtn').style.display = '';
+              document.getElementById('showMotorStateBtn').style.display = '';
             } else {
               showMsg('Remote connected. Configure and upload settings.', 'success');
             }
@@ -668,8 +704,9 @@ label, legend, fieldset {
     };
 
     async function disconnectSerial() {
-      // Stop sonar reading if active
+      // Stop sonar and motor reading if active
       if (sonarReadingActive) stopSonarReading();
+      if (motorStateReadingActive) stopMotorStateReading();
       if (reader) { try { await reader.cancel(); } catch {} reader = null; }
       if (writer) { try { writer.releaseLock(); } catch {} writer = null; }
       if (port) { try { await port.close(); } catch {} port = null; }
@@ -679,12 +716,14 @@ label, legend, fieldset {
       showMsg('Disconnected.', 'success');
       openFlasherBtn.style.display = 'none';
       document.getElementById('showSonarBtn').style.display = 'none';
+      document.getElementById('showMotorStateBtn').style.display = 'none';
       document.getElementById('sonarPanel').style.display = 'none';
+      document.getElementById('motorStatePanel').style.display = 'none';
       // Reset all input values to 0 on disconnect (except working_hour and fixed address bytes)
       const inputFields = [
         'address_3','address_4',
         'max_drive','max_turn','max_cow','accel','deccel','cow_factor','channel','max_sonar_distance',
-        'min_sonar_distance','filtered_sonar','stop_mode','fixed_stop_threshold','sensor_alpha','time_out'
+        'min_sonar_distance','filtered_sonar','stop_mode','fixed_stop_threshold','sensor_alpha','coast','coast_threshold','time_out'
       ];
       inputFields.forEach(f => {
         const el = document.getElementById(f);
@@ -732,6 +771,47 @@ label, legend, fieldset {
         }
       }
       return result;
+    }
+
+    // Motor state monitoring variables
+    let motorStateReadingActive = false;
+    let motorStateReadInterval = null;
+
+    async function startMotorStateReading() {
+      if (motorStateReadingActive || !connected) return;
+      motorStateReadingActive = true;
+      document.getElementById('motorStartBtn').style.display = 'none';
+      document.getElementById('motorStopBtn').style.display = '';
+      debugLog('Motor state reading started');
+      
+      motorStateReadInterval = setInterval(async () => {
+        if (!motorStateReadingActive || !connected) return;
+        const lines = await sendCmd('MOTOR_STATE', true);
+        lines.forEach(line => {
+          if (line.includes('MOTOR_RIGHT') && line.includes('MOTOR_LEFT') && line.includes('MOTOR_COW')) {
+            // Parse: MOTOR_RIGHT=123.45 MOTOR_LEFT=456.78 MOTOR_COW=789.00
+            const rightMatch = line.match(/MOTOR_RIGHT=([\d.-]+)/);
+            const leftMatch = line.match(/MOTOR_LEFT=([\d.-]+)/);
+            const cowMatch = line.match(/MOTOR_COW=([\d.-]+)/);
+            if (rightMatch && leftMatch && cowMatch) {
+              const right = parseFloat(rightMatch[1]);
+              const left = parseFloat(leftMatch[1]);
+              const cow = parseFloat(cowMatch[1]);
+              document.getElementById('motorRightValue').textContent = right.toFixed(2);
+              document.getElementById('motorLeftValue').textContent = left.toFixed(2);
+              document.getElementById('motorCowValue').textContent = cow.toFixed(2);
+            }
+          }
+        });
+      }, 100);
+    }
+
+    function stopMotorStateReading() {
+      motorStateReadingActive = false;
+      if (motorStateReadInterval) clearInterval(motorStateReadInterval);
+      document.getElementById('motorStartBtn').style.display = '';
+      document.getElementById('motorStopBtn').style.display = 'none';
+      debugLog('Motor state reading stopped');
     }
 
     // Sonar monitoring variables
@@ -933,6 +1013,10 @@ label, legend, fieldset {
             document.getElementById('fixed_stop_threshold').value = value;
           } else if (key === 'sensor_alpha') {
             document.getElementById('sensor_alpha').value = value;
+          } else if (key === 'coast') {
+            document.getElementById('coast').value = value;
+          } else if (key === 'coast_threshold') {
+            document.getElementById('coast_threshold').value = value;
           } else if (key === 'channel') {
             document.getElementById('channel').value = value;
           } else if (fields.includes(key)) {
@@ -964,6 +1048,8 @@ label, legend, fieldset {
         const stopMode = parseInt(document.getElementById('stop_mode').value);
         const fixedStopThreshold = parseInt(document.getElementById('fixed_stop_threshold').value);
         const sensorAlpha = parseFloat(document.getElementById('sensor_alpha').value);
+        const coast = parseInt(document.getElementById('coast').value);
+        const coastThreshold = parseInt(document.getElementById('coast_threshold').value);
         const channel = parseInt(document.getElementById('channel').value);
         let invalidFields = [];
         if (isNaN(maxDrive) || maxDrive < 280 || maxDrive > 3000) invalidFields.push('max_drive');
@@ -979,6 +1065,8 @@ label, legend, fieldset {
         if (isNaN(stopMode) || stopMode < 0 || stopMode > 1) invalidFields.push('stop_mode');
         if (isNaN(fixedStopThreshold) || fixedStopThreshold < 0 || fixedStopThreshold > 3000) invalidFields.push('fixed_stop_threshold');
         if (isNaN(sensorAlpha) || sensorAlpha < 0 || sensorAlpha > 1) invalidFields.push('sensor_alpha');
+        if (isNaN(coast) || coast < 0 || coast > 1) invalidFields.push('coast');
+        if (isNaN(coastThreshold) || coastThreshold < 1 || coastThreshold > 100) invalidFields.push('coast_threshold');
         if (invalidFields.length > 0) {
           let msg = '';
           let rangeMsg = [];
@@ -988,8 +1076,11 @@ label, legend, fieldset {
           if (invalidFields.includes('min_sonar_distance') || invalidFields.includes('fixed_stop_threshold')) {
             rangeMsg.push('min_sonar_distance, fixed_stop_threshold: 0-3000');
           }
-          if (invalidFields.includes('filtered_sonar') || invalidFields.includes('stop_mode')) {
-            rangeMsg.push('filtered_sonar, stop_mode: 0 or 1');
+          if (invalidFields.includes('filtered_sonar') || invalidFields.includes('stop_mode') || invalidFields.includes('coast')) {
+            rangeMsg.push('filtered_sonar, stop_mode, coast: 0 or 1');
+          }
+          if (invalidFields.includes('coast_threshold')) {
+            rangeMsg.push('coast_threshold: 1-100');
           }
           if (invalidFields.includes('accel') || invalidFields.includes('deccel') || invalidFields.includes('cow_factor') || invalidFields.includes('sensor_alpha')) {
             rangeMsg.push('accel, deccel, cow_factor, sensor_alpha: 0-1');
@@ -1015,6 +1106,8 @@ label, legend, fieldset {
         await sendCmd(`STOP_MODE=${stopMode}`);
         await sendCmd(`FIXED_STOP_THRESHOLD=${fixedStopThreshold}`);
         await sendCmd(`SENSOR_ALPHA=${sensorAlpha}`);
+        await sendCmd(`COAST=${coast}`);
+        await sendCmd(`COAST_THRESHOLD=${coastThreshold}`);
         await sendCmd(`TIME_OUT=${parseInt(document.getElementById('time_out').value)}`);
         await sendCmd('SAVE');
         showMsg('Configuration saved to STM32 flash.', 'success');
@@ -1221,6 +1314,20 @@ function delay(ms) {
       stopSonarReading();
       document.getElementById('sonarPanel').style.display = 'none';
       document.getElementById('showSonarBtn').style.display = '';
+    };
+
+    document.getElementById('motorStartBtn').onclick = startMotorStateReading;
+    document.getElementById('motorStopBtn').onclick = stopMotorStateReading;
+
+    document.getElementById('showMotorStateBtn').onclick = () => {
+      document.getElementById('motorStatePanel').style.display = '';
+      document.getElementById('showMotorStateBtn').style.display = 'none';
+    };
+
+    document.getElementById('motorCloseBtn').onclick = () => {
+      stopMotorStateReading();
+      document.getElementById('motorStatePanel').style.display = 'none';
+      document.getElementById('showMotorStateBtn').style.display = '';
     };
 
     document.getElementById('sonarStartBtn').onclick = startSonarReading;
