@@ -339,7 +339,7 @@ label, legend, fieldset {
         </div>
         <div style="display: flex; align-items: center; width: 100%; gap: 1em;">
           <label for="coast_threshold" style="flex: 1 0 140px;">Coast Threshold</label>
-          <input id="coast_threshold" type="number" min="0" max="1000" value="50" style="flex: 2 0 180px;" title="Coast threshold value (0-1000) not used if coast release mode is active">
+          <input id="coast_threshold" type="number" min="0" max="1000" value="0" style="flex: 2 0 180px;" title="Coast threshold value (0-1000) not used if coast release mode is active">
         </div>
         <div style="display: flex; align-items: center; width: 100%; gap: 1em;">
           <label for="working_hour" style="flex: 1 0 140px;">Hour Meter</label>
@@ -466,7 +466,7 @@ label, legend, fieldset {
           address_0: '67', address_1: '79', address_2: '87', address_3: '65', address_4: '68',
           max_drive: '1000', max_turn: '1000', max_cow: '500',
           accel: '0.04', deccel: '0.07', cow_factor: '0.25', channel: '76', time_out: '2000', max_sonar_distance: '1000',
-          min_sonar_distance: '0', filtered_sonar: '0', stop_mode: '0', fixed_stop_threshold: '0', sensor_alpha: '0', coast: '0', coast_release: '0', coast_threshold: '50'
+          min_sonar_distance: '0', filtered_sonar: '0', stop_mode: '0', fixed_stop_threshold: '0', sensor_alpha: '0', coast: '0', coast_release: '0', coast_threshold: '0'
         }
       },
       'cow_horse_product': {
@@ -475,7 +475,7 @@ label, legend, fieldset {
           address_0: '67', address_1: '79', address_2: '87', address_3: '65', address_4: '68',
           max_drive: '1000', max_turn: '750', max_cow: '200',
           accel: '0.05', deccel: '0.12', cow_factor: '0.5', channel: '76', time_out: '2000', max_sonar_distance: '1000',
-          min_sonar_distance: '0', filtered_sonar: '0', stop_mode: '0', fixed_stop_threshold: '0', sensor_alpha: '0', coast: '0', coast_release: '0', coast_threshold: '50'
+          min_sonar_distance: '0', filtered_sonar: '0', stop_mode: '0', fixed_stop_threshold: '0', sensor_alpha: '0', coast: '0', coast_release: '0', coast_threshold: '0'
         }
       },
       'cow_retrofit': {
@@ -484,7 +484,7 @@ label, legend, fieldset {
           address_0: '67', address_1: '79', address_2: '87', address_3: '65', address_4: '68',
           max_drive: '1000', max_turn: '1000', max_cow: '800',
           accel: '0.06', deccel: '0.04', cow_factor: '0.75', channel: '76', time_out: '2000', max_sonar_distance: '1000',
-          min_sonar_distance: '0', filtered_sonar: '0', stop_mode: '0', fixed_stop_threshold: '0', sensor_alpha: '0', coast: '0', coast_release: '0', coast_threshold: '50'
+          min_sonar_distance: '0', filtered_sonar: '0', stop_mode: '0', fixed_stop_threshold: '0', sensor_alpha: '0', coast: '0', coast_release: '0', coast_threshold: '0'
         }
       }
     };
@@ -848,7 +848,7 @@ label, legend, fieldset {
     let sonarChart = null;
     let sonarData = { timestamps: [], raw: [], filtered: [] };
     const SONAR_HISTORY_SECONDS = 60;
-    const SONAR_READ_INTERVAL = 500; // milliseconds
+    const SONAR_READ_INTERVAL = 100; // milliseconds
 
     function initSonarChart() {
       const ctx = document.getElementById('sonarChart').getContext('2d');

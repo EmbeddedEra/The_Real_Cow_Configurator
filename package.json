@@ -1,0 +1,8 @@
+{
+  "name": "the-real-cow-configurator",
+  "version": "1.5.1",
+  "description": "Cow Configurator Web Serial",
+  "devDependencies": {
+    "semantic-release": "^21.0.0"
+  }
+}
