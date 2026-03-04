@@ -10,14 +10,35 @@ if (!version) {
   process.exit(1);
 }
 
-// Update index.html
-const indexPath = path.join(__dirname, '../../index.html');
-let htmlContent = fs.readFileSync(indexPath, 'utf8');
+// Update index.html - adjust path based on where script runs from
+const possiblePaths = [
+  path.join(__dirname, '../../index.html'),
+  path.join(process.cwd(), 'index.html'),
+  './index.html'
+];
 
-htmlContent = htmlContent.replace(
+let htmlPath = null;
+for (const p of possiblePaths) {
+  if (fs.existsSync(p)) {
+    htmlPath = p;
+    break;
+  }
+}
+
+if (!htmlPath) {
+  console.error('Could not find index.html');
+  process.exit(1);
+}
+
+let htmlContent = fs.readFileSync(htmlPath, 'utf8');
+const updatedContent = htmlContent.replace(
   /content="v[\d.]+"/,
   `content="v${version}"`
 );
 
-fs.writeFileSync(indexPath, htmlContent, 'utf8');
-console.log(`Updated index.html to version v${version}`);
+if (htmlContent === updatedContent) {
+  console.warn('Warning: No version tag found to update');
+}
+
+fs.writeFileSync(htmlPath, updatedContent, 'utf8');
+console.log(`Updated ${htmlPath} to version v${version}`);
