@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Cow Configurator (Web Serial)</title>
-  <meta name="cow-configurator-version" content="v1.4.0">
+  <meta name="cow-configurator-version" content="v1.5.0">
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
 /* Sakura Dark CSS - Inlined for offline use */
@@ -223,6 +223,27 @@ label, legend, fieldset {
   margin-bottom: 0.5rem;
   font-weight: 600;
 }
+/* Progress Bar Styles */
+.progress-container {
+  width: 100%;
+  background-color: #4a4a4a;
+  border-radius: 4px;
+  overflow: hidden;
+  margin: 1em 0;
+  display: none;
+}
+.progress-bar {
+  height: 30px;
+  background: linear-gradient(90deg, #4caf50 0%, #66bb6a 100%);
+  border-radius: 4px;
+  transition: width 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-weight: bold;
+  font-size: 0.9em;
+}
   </style>
 </head>
 <body>
@@ -340,6 +361,9 @@ label, legend, fieldset {
       </div>
     </form>
     <div id="msg"></div>
+    <div id="progressContainer" class="progress-container">
+      <div id="progressBar" class="progress-bar" style="width: 0%;">0%</div>
+    </div>
     <div id="debugPanel" style="display:none; margin-top: 2em; background: #1a1a1a; border: 1px solid #555; border-radius: 6px; padding: 1em;">
       <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1em;">
         <h3 style="margin: 0;">Debug Console</h3>
@@ -989,11 +1013,30 @@ label, legend, fieldset {
       return lines;
     }
 
+    function showProgress(percent, text) {
+      const container = document.getElementById('progressContainer');
+      const bar = document.getElementById('progressBar');
+      container.style.display = 'block';
+      bar.style.width = percent + '%';
+      bar.textContent = text || (percent + '%');
+    }
+
+    function hideProgress() {
+      const container = document.getElementById('progressContainer');
+      container.style.display = 'none';
+      const bar = document.getElementById('progressBar');
+      bar.style.width = '0%';
+      bar.textContent = '0%';
+    }
+
     async function loadFromDevice() {
       if (!connected) { showMsg('Not connected.', 'error'); return; }
+      showProgress(10, 'Loading...');
       await sendCmd('LOAD');
+      showProgress(40, 'Requesting data...');
       const lines = await sendCmd('DUMP', true);
-      if (!lines.length) { showMsg('No response from device.', 'error'); return; }
+      if (!lines.length) { showMsg('No response from device.', 'error'); hideProgress(); return; }
+      showProgress(70, 'Processing data...');
       lines.forEach(line => {
         if (line.startsWith('ADDR=')) {
           const addr = line.split('=')[1].split(':');
@@ -1031,12 +1074,15 @@ label, legend, fieldset {
         }
       });
       updateAddressMatchLabel();
+      showProgress(100, 'Complete!');
       showMsg('Configuration loaded.', 'success');
+      setTimeout(hideProgress, 1000);
     }
 
     document.getElementById('saveBtn').onclick = async () => {
       if (!connected) { showMsg('Not connected.', 'error'); return; }
       try {
+        showProgress(5, 'Preparing...');
         let addr = [];
         for (let i=0; i<5; ++i) addr.push(parseInt(document.getElementById(`address_${i}`).value));
         // Validate max_drive, max_turn, max_cow
@@ -1058,6 +1104,7 @@ label, legend, fieldset {
         const coastRelease = parseInt(document.getElementById('coast_release').value);
         const coastThreshold = parseInt(document.getElementById('coast_threshold').value);
         const channel = parseInt(document.getElementById('channel').value);
+        showProgress(10, 'Validating...');
         let invalidFields = [];
         if (isNaN(maxDrive) || maxDrive < 280 || maxDrive > 3000) invalidFields.push('max_drive');
         if (isNaN(maxTurn) || maxTurn < 280 || maxTurn > 3000) invalidFields.push('max_turn');
@@ -1098,30 +1145,60 @@ label, legend, fieldset {
           }
           msg = 'Values for ' + invalidFields.join(', ') + ' must be in range: ' + rangeMsg.join('; ');
           showMsg(msg, 'error');
+          hideProgress();
           return;
         }
+        const totalCommands = 19;
+        let currentCommand = 0;
+        const updateProgress = () => {
+          currentCommand++;
+          const percent = Math.floor(15 + (currentCommand / totalCommands) * 80);
+          showProgress(percent, `Uploading... ${currentCommand}/${totalCommands}`);
+        };
         await sendCmd(`ADDR=${addr.join(':')}`);
+        updateProgress();
         await sendCmd(`MAX_DRIVE=${maxDrive}`);
+        updateProgress();
         await sendCmd(`MAX_TURN=${maxTurn}`);
+        updateProgress();
         await sendCmd(`MAX_COW=${maxCow}`);
+        updateProgress();
         await sendCmd(`ACCEL=${accel}`);
+        updateProgress();
         await sendCmd(`DECCEL=${deccel}`);
+        updateProgress();
         await sendCmd(`COW_FACTOR=${cowFactor}`);
+        updateProgress();
         await sendCmd(`CHANNEL=${channel}`);
+        updateProgress();
         await sendCmd(`MAX_SONAR_DISTANCE=${sonar}`);
+        updateProgress();
         await sendCmd(`MIN_SONAR_DISTANCE=${minSonar}`);
+        updateProgress();
         await sendCmd(`FILTERED_SONAR=${filteredSonar}`);
+        updateProgress();
         await sendCmd(`STOP_MODE=${stopMode}`);
+        updateProgress();
         await sendCmd(`FIXED_STOP_THRESHOLD=${fixedStopThreshold}`);
+        updateProgress();
         await sendCmd(`SENSOR_ALPHA=${sensorAlpha}`);
+        updateProgress();
         await sendCmd(`COAST=${coast}`);
+        updateProgress();
         await sendCmd(`COAST_RELEASE=${coastRelease}`);
+        updateProgress();
         await sendCmd(`COAST_THRESHOLD=${coastThreshold}`);
+        updateProgress();
         await sendCmd(`TIME_OUT=${parseInt(document.getElementById('time_out').value)}`);
+        updateProgress();
+        showProgress(95, 'Saving...');
         await sendCmd('SAVE');
+        showProgress(100, 'Complete!');
         showMsg('Configuration saved to STM32 flash.', 'success');
+        setTimeout(hideProgress, 1000);
       } catch (e) {
         showMsg('Failed to send/save: ' + e, 'error');
+        hideProgress();
       }
     };
 
