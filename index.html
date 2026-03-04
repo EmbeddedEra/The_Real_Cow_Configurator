@@ -1106,14 +1106,14 @@ label, legend, fieldset {
         const channel = parseInt(document.getElementById('channel').value);
         showProgress(10, 'Validating...');
         let invalidFields = [];
-        if (isNaN(maxDrive) || maxDrive < 280 || maxDrive > 3000) invalidFields.push('max_drive');
-        if (isNaN(maxTurn) || maxTurn < 280 || maxTurn > 3000) invalidFields.push('max_turn');
-        if (isNaN(maxCow) || maxCow < 280 || maxCow > 3000) invalidFields.push('max_cow');
+        if (isNaN(maxDrive) || maxDrive < 0 || maxDrive > 1000) invalidFields.push('max_drive');
+        if (isNaN(maxTurn) || maxTurn < 0 || maxTurn > 1000) invalidFields.push('max_turn');
+        if (isNaN(maxCow) || maxCow < 0 || maxCow > 1000) invalidFields.push('max_cow');
         if (isNaN(accel) || accel < 0 || accel > 1) invalidFields.push('accel');
         if (isNaN(deccel) || deccel < 0 || deccel > 1) invalidFields.push('deccel');
         if (isNaN(cowFactor) || cowFactor < 0 || cowFactor > 1) invalidFields.push('cow_factor');
         if (isNaN(channel) || channel < 0 || channel > 255) invalidFields.push('channel');
-        if (isNaN(sonar) || sonar < 280 || sonar > 3000) invalidFields.push('max_sonar_distance');
+        if (isNaN(sonar) || sonar < 0 || sonar > 3000) invalidFields.push('max_sonar_distance');
         if (isNaN(minSonar) || minSonar < 0 || minSonar > 3000) invalidFields.push('min_sonar_distance');
         if (isNaN(filteredSonar) || filteredSonar < 0 || filteredSonar > 1) invalidFields.push('filtered_sonar');
         if (isNaN(stopMode) || stopMode < 0 || stopMode > 1) invalidFields.push('stop_mode');
@@ -1121,21 +1121,18 @@ label, legend, fieldset {
         if (isNaN(sensorAlpha) || sensorAlpha < 0 || sensorAlpha > 1) invalidFields.push('sensor_alpha');
         if (isNaN(coast) || coast < 0 || coast > 1) invalidFields.push('coast');
         if (isNaN(coastRelease) || coastRelease < 0 || coastRelease > 1) invalidFields.push('coast_release');
-        if (isNaN(coastThreshold) || coastThreshold < 1 || coastThreshold > 100) invalidFields.push('coast_threshold');
+        if (isNaN(coastThreshold) || coastThreshold < 0 || coastThreshold > 1000) invalidFields.push('coast_threshold');
         if (invalidFields.length > 0) {
           let msg = '';
           let rangeMsg = [];
-          if (invalidFields.includes('max_drive') || invalidFields.includes('max_turn') || invalidFields.includes('max_cow') || invalidFields.includes('max_sonar_distance')) {
-            rangeMsg.push('max_drive, max_turn, max_cow, max_sonar_distance: 280-3000');
+          if (invalidFields.includes('max_drive') || invalidFields.includes('max_turn') || invalidFields.includes('max_cow') || invalidFields.includes('coast_threshold')) {
+            rangeMsg.push('max_drive, max_turn, max_cow, coast_threshold: 0-1000');
           }
-          if (invalidFields.includes('min_sonar_distance') || invalidFields.includes('fixed_stop_threshold')) {
-            rangeMsg.push('min_sonar_distance, fixed_stop_threshold: 0-3000');
+          if (invalidFields.includes('min_sonar_distance') || invalidFields.includes('fixed_stop_threshold') || invalidFields.includes('max_sonar_distance')) {
+            rangeMsg.push('min_sonar_distance, fixed_stop_threshold, max_sonar_distance: 0-3000');
           }
           if (invalidFields.includes('filtered_sonar') || invalidFields.includes('stop_mode') || invalidFields.includes('coast') || invalidFields.includes('coast_release')) {
             rangeMsg.push('filtered_sonar, stop_mode, coast, coast_release: 0 or 1');
-          }
-          if (invalidFields.includes('coast_threshold')) {
-            rangeMsg.push('coast_threshold: 1-100');
           }
           if (invalidFields.includes('accel') || invalidFields.includes('deccel') || invalidFields.includes('cow_factor') || invalidFields.includes('sensor_alpha')) {
             rangeMsg.push('accel, deccel, cow_factor, sensor_alpha: 0-1');
