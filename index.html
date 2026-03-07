@@ -708,7 +708,11 @@ label, legend, fieldset {
     connectBtn.onclick = async () => {
       if (!connected) {
         try {
-          port = await navigator.serial.requestPort();
+          port = await navigator.serial.requestPort({
+            filters: [
+              { usbVendorId: 0x0483 }  // STMicroelectronics (STM32)
+            ]
+          });
           await port.open({ baudRate: 115200 });
           writer = port.writable.getWriter();
           reader = port.readable.getReader();
