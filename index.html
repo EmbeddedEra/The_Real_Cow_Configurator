@@ -259,7 +259,7 @@ label, legend, fieldset {
         <label for="presetSelect" style="flex: 1 0 140px;">Configuration Preset</label>
         <select id="presetSelect" style="flex: 2 0 180px; width: calc(100% - 8px); margin-left: 8px;"></select>
       </div>
-  <div class="row" style="display:flex; align-items:center; gap: .5em; margin-top: 0.25em;">
+      <div class="row" style="display:flex; align-items:center; gap: .5em; margin-top: 0.25em;">
         <span style="flex: 1 0 140px;"></span>
         <button type="button" id="applyPresetBtn" title="Apply the selected preset">Apply</button>
         <button type="button" id="savePresetBtn" title="Save current form values as a new preset">Save as Preset</button>
@@ -296,6 +296,10 @@ label, legend, fieldset {
         <div style="display: flex; align-items: center; width: 100%; gap: 1em;">
           <label for="deccel" style="flex: 1 0 140px;">Deceleration</label>
           <input id="deccel" type="number" step="0.01" value="0.04" style="flex: 2 0 180px;" title="Deceleration rate (0-1)">
+        </div>
+        <div style="display: flex; align-items: center; width: 100%; gap: 1em;">
+          <label for="decel_min_ratio" style="flex: 1 0 140px;">Decel Ratio</label>
+          <input id="decel_min_ratio" type="number" step="0.01" min="0" max="1" value="0" style="flex: 2 0 180px;" title="Minimum deceleration ratio (0-1)">
         </div>
         <div style="display: flex; align-items: center; width: 100%; gap: 1em;">
           <label for="cow_factor" style="flex: 1 0 140px;">Cow Factor</label>
@@ -466,7 +470,7 @@ label, legend, fieldset {
         values: {
           address_0: '67', address_1: '79', address_2: '87', address_3: '65', address_4: '68',
           max_drive: '1000', max_turn: '1000', max_cow: '500',
-          accel: '0.04', deccel: '0.07', cow_factor: '0.25', channel: '76', time_out: '2000', max_sonar_distance: '1000',
+          accel: '0.04', deccel: '0.07', decel_min_ratio: '1.0', cow_factor: '0.25', channel: '76', time_out: '2000', max_sonar_distance: '1000',
           min_sonar_distance: '0', filtered_sonar: '0', stop_mode: '0', fixed_stop_threshold: '0', sensor_alpha: '0', coast: '0', coast_release: '0', coast_threshold: '0'
         }
       },
@@ -475,7 +479,7 @@ label, legend, fieldset {
         values: {
           address_0: '67', address_1: '79', address_2: '87', address_3: '65', address_4: '68',
           max_drive: '1000', max_turn: '750', max_cow: '200',
-          accel: '0.05', deccel: '0.12', cow_factor: '0.5', channel: '76', time_out: '2000', max_sonar_distance: '1000',
+          accel: '0.05', deccel: '0.12', decel_min_ratio: '1.0', cow_factor: '0.5', channel: '76', time_out: '2000', max_sonar_distance: '1000',
           min_sonar_distance: '0', filtered_sonar: '0', stop_mode: '0', fixed_stop_threshold: '0', sensor_alpha: '0', coast: '0', coast_release: '0', coast_threshold: '0'
         }
       },
@@ -484,7 +488,7 @@ label, legend, fieldset {
         values: {
           address_0: '67', address_1: '79', address_2: '87', address_3: '65', address_4: '68',
           max_drive: '1000', max_turn: '1000', max_cow: '800',
-          accel: '0.06', deccel: '0.04', cow_factor: '0.75', channel: '76', time_out: '2000', max_sonar_distance: '1000',
+          accel: '0.06', deccel: '0.04', decel_min_ratio: '1.0', cow_factor: '0.75', channel: '76', time_out: '2000', max_sonar_distance: '1000',
           min_sonar_distance: '0', filtered_sonar: '0', stop_mode: '0', fixed_stop_threshold: '0', sensor_alpha: '0', coast: '0', coast_release: '0', coast_threshold: '0'
         }
       }
@@ -545,7 +549,7 @@ label, legend, fieldset {
       if (!values) return;
       const ids = [
         'address_0','address_1','address_2','address_3','address_4',
-        'max_drive','max_turn','max_cow','accel','deccel','cow_factor','channel','time_out','max_sonar_distance',
+        'max_drive','max_turn','max_cow','accel','deccel','decel_min_ratio','cow_factor','channel','time_out','max_sonar_distance',
         'min_sonar_distance','filtered_sonar','stop_mode','fixed_stop_threshold','sensor_alpha','coast','coast_release','coast_threshold'
       ];
       ids.forEach(id => {
@@ -560,7 +564,7 @@ label, legend, fieldset {
     function getCurrentFormValues() {
       const ids = [
         'address_0','address_1','address_2','address_3','address_4',
-        'max_drive','max_turn','max_cow','accel','deccel','cow_factor','channel','time_out','max_sonar_distance',
+        'max_drive','max_turn','max_cow','accel','deccel','decel_min_ratio','cow_factor','channel','time_out','max_sonar_distance',
         'min_sonar_distance','filtered_sonar','stop_mode','fixed_stop_threshold','sensor_alpha','coast','coast_release','coast_threshold'
       ];
       const data = {};
@@ -687,7 +691,7 @@ label, legend, fieldset {
 
     const fields = [
       'address_0','address_1','address_2','address_3','address_4',
-      'max_drive','max_turn','max_cow','accel','deccel','cow_factor','channel','max_sonar_distance',
+      'max_drive','max_turn','max_cow','accel','deccel','decel_min_ratio','cow_factor','channel','max_sonar_distance',
       'min_sonar_distance','filtered_sonar','stop_mode','fixed_stop_threshold','sensor_alpha','coast','coast_release','coast_threshold','working_hour','time_out'
     ];
 
@@ -751,7 +755,7 @@ label, legend, fieldset {
       // Reset all input values to 0 on disconnect (except working_hour and fixed address bytes)
       const inputFields = [
         'address_3','address_4',
-        'max_drive','max_turn','max_cow','accel','deccel','cow_factor','channel','max_sonar_distance',
+        'max_drive','max_turn','max_cow','accel','deccel','decel_min_ratio','cow_factor','channel','max_sonar_distance',
         'min_sonar_distance','filtered_sonar','stop_mode','fixed_stop_threshold','sensor_alpha','coast','coast_release','coast_threshold','time_out'
       ];
       inputFields.forEach(f => {
@@ -1093,6 +1097,7 @@ label, legend, fieldset {
         // Validate accel, deccel, cow_factor
         const accel = parseFloat(document.getElementById('accel').value);
         const deccel = parseFloat(document.getElementById('deccel').value);
+        const decelMinRatio = parseFloat(document.getElementById('decel_min_ratio').value);
         const cowFactor = parseFloat(document.getElementById('cow_factor').value);
         // New sonar distance value
         const sonar = parseInt(document.getElementById('max_sonar_distance').value);
@@ -1112,6 +1117,7 @@ label, legend, fieldset {
         if (isNaN(maxCow) || maxCow < 0 || maxCow > 1000) invalidFields.push('max_cow');
         if (isNaN(accel) || accel < 0 || accel > 1) invalidFields.push('accel');
         if (isNaN(deccel) || deccel < 0 || deccel > 1) invalidFields.push('deccel');
+        if (isNaN(decelMinRatio) || decelMinRatio < 0 || decelMinRatio > 1) invalidFields.push('decel_min_ratio');
         if (isNaN(cowFactor) || cowFactor < 0 || cowFactor > 1) invalidFields.push('cow_factor');
         if (isNaN(channel) || channel < 0 || channel > 255) invalidFields.push('channel');
         if (isNaN(sonar) || sonar < 0 || sonar > 3000) invalidFields.push('max_sonar_distance');
@@ -1135,8 +1141,8 @@ label, legend, fieldset {
           if (invalidFields.includes('filtered_sonar') || invalidFields.includes('stop_mode') || invalidFields.includes('coast') || invalidFields.includes('coast_release')) {
             rangeMsg.push('filtered_sonar, stop_mode, coast, coast_release: 0 or 1');
           }
-          if (invalidFields.includes('accel') || invalidFields.includes('deccel') || invalidFields.includes('cow_factor') || invalidFields.includes('sensor_alpha')) {
-            rangeMsg.push('accel, deccel, cow_factor, sensor_alpha: 0-1');
+          if (invalidFields.includes('accel') || invalidFields.includes('deccel') || invalidFields.includes('decel_min_ratio') || invalidFields.includes('cow_factor') || invalidFields.includes('sensor_alpha')) {
+            rangeMsg.push('accel, deccel, decel_min_ratio, cow_factor, sensor_alpha: 0-1');
           }
           if (invalidFields.includes('channel')) {
             rangeMsg.push('channel: 0-255');
@@ -1146,7 +1152,7 @@ label, legend, fieldset {
           hideProgress();
           return;
         }
-        const totalCommands = 19;
+        const totalCommands = 20;
         let currentCommand = 0;
         const updateProgress = () => {
           currentCommand++;
@@ -1164,6 +1170,8 @@ label, legend, fieldset {
         await sendCmd(`ACCEL=${accel}`);
         updateProgress();
         await sendCmd(`DECCEL=${deccel}`);
+        updateProgress();
+        await sendCmd(`DECEL_MIN_RATIO=${decelMinRatio}`);
         updateProgress();
         await sendCmd(`COW_FACTOR=${cowFactor}`);
         updateProgress();
@@ -1323,7 +1331,7 @@ function delay(ms) {
       // Set all input values to 0 on page load (except working_hour and fixed address bytes)
       const inputFields = [
         'address_3','address_4',
-        'max_drive','max_turn','max_cow','accel','deccel','cow_factor','channel','time_out'
+        'max_drive','max_turn','max_cow','accel','deccel','decel_min_ratio','cow_factor','channel','time_out'
       ];
       inputFields.forEach(f => {
         const el = document.getElementById(f);
