@@ -299,7 +299,7 @@ label, legend, fieldset {
         </div>
         <div style="display: flex; align-items: center; width: 100%; gap: 1em;">
           <label for="decel_min_ratio" style="flex: 1 0 140px;">Decel Ratio</label>
-          <input id="decel_min_ratio" type="number" step="0.01" min="0" max="1" value="0" style="flex: 2 0 180px;" title="Minimum deceleration ratio (0-1)">
+          <input id="decel_min_ratio" type="number" step="0.01" min="0" max="1" value="0" style="flex: 2 0 180px;" title="Minimum deceleration ratio (0-1), 1 to disable">
         </div>
         <div style="display: flex; align-items: center; width: 100%; gap: 1em;">
           <label for="cow_factor" style="flex: 1 0 140px;">Cow Factor</label>
@@ -491,6 +491,15 @@ label, legend, fieldset {
           accel: '0.06', deccel: '0.04', decel_min_ratio: '1.0', cow_factor: '0.75', channel: '76', time_out: '2000', max_sonar_distance: '1000',
           min_sonar_distance: '0', filtered_sonar: '0', stop_mode: '0', fixed_stop_threshold: '0', sensor_alpha: '0', coast: '0', coast_release: '0', coast_threshold: '0'
         }
+      },
+      'team_roper': {
+        label: 'Team Roper',
+        values: {
+          address_0: '67', address_1: '79', address_2: '87', address_3: '65', address_4: '68',
+          max_drive: '1000', max_turn: '750', max_cow: '800',
+          accel: '0.05', deccel: '0.06', decel_min_ratio: '0.35', cow_factor: '0.75', channel: '76', time_out: '2000', max_sonar_distance: '1000',
+          min_sonar_distance: '0', filtered_sonar: '0', stop_mode: '0', fixed_stop_threshold: '0', sensor_alpha: '0', coast: '1', coast_release: '0', coast_threshold: '20'
+        }
       }
     };
 
@@ -679,6 +688,7 @@ label, legend, fieldset {
     let reader = null;
     let writer = null;
     let connected = false;
+    let disconnectInProgress = false;
 
     const connectBtn = document.getElementById('connectBtn');
     const versionLabel = document.getElementById('versionLabel');
@@ -736,38 +746,54 @@ label, legend, fieldset {
       }
     };
 
-    async function disconnectSerial() {
-      // Stop sonar and motor reading if active
-      if (sonarReadingActive) stopSonarReading();
-      if (motorStateReadingActive) stopMotorStateReading();
-      if (reader) { try { await reader.cancel(); } catch {} reader = null; }
-      if (writer) { try { writer.releaseLock(); } catch {} writer = null; }
-      if (port) { try { await port.close(); } catch {} port = null; }
-      connected = false;
-      connectBtn.textContent = 'Connect';
-      versionLabel.textContent = 'Version: Not connected';
-      showMsg('Disconnected.', 'success');
-      openFlasherBtn.style.display = 'none';
-      document.getElementById('showSonarBtn').style.display = 'none';
-      document.getElementById('showMotorStateBtn').style.display = 'none';
-      document.getElementById('sonarPanel').style.display = 'none';
-      document.getElementById('motorStatePanel').style.display = 'none';
-      // Reset all input values to 0 on disconnect (except working_hour and fixed address bytes)
-      const inputFields = [
-        'address_3','address_4',
-        'max_drive','max_turn','max_cow','accel','deccel','decel_min_ratio','cow_factor','channel','max_sonar_distance',
-        'min_sonar_distance','filtered_sonar','stop_mode','fixed_stop_threshold','sensor_alpha','coast','coast_release','coast_threshold','time_out'
-      ];
-      inputFields.forEach(f => {
-        const el = document.getElementById(f);
-        if (el) el.value = 0;
+    if ('serial' in navigator) {
+      navigator.serial.addEventListener('disconnect', async (event) => {
+        const disconnectedPort = event?.port;
+        if (!connected) return;
+        if (port && disconnectedPort && disconnectedPort !== port) return;
+        await disconnectSerial();
+        showMsg('USB disconnected. Forced disconnect.', 'error');
       });
-      // Keep the fixed address values
-      document.getElementById('address_0').value = 67;
-      document.getElementById('address_1').value = 79;
-      document.getElementById('address_2').value = 87;
-      const workingHourInput = document.getElementById('working_hour');
-      if (workingHourInput) workingHourInput.value = '0.00 h';
+    }
+
+    async function disconnectSerial() {
+      if (disconnectInProgress) return;
+      disconnectInProgress = true;
+      // Stop sonar and motor reading if active
+      try {
+        if (sonarReadingActive) stopSonarReading();
+        if (motorStateReadingActive) stopMotorStateReading();
+        if (reader) { try { await reader.cancel(); } catch {} reader = null; }
+        if (writer) { try { writer.releaseLock(); } catch {} writer = null; }
+        if (port) { try { await port.close(); } catch {} port = null; }
+        connected = false;
+        connectBtn.textContent = 'Connect';
+        versionLabel.textContent = 'Version: Not connected';
+        showMsg('Disconnected.', 'success');
+        openFlasherBtn.style.display = 'none';
+        document.getElementById('showSonarBtn').style.display = 'none';
+        document.getElementById('showMotorStateBtn').style.display = 'none';
+        document.getElementById('sonarPanel').style.display = 'none';
+        document.getElementById('motorStatePanel').style.display = 'none';
+        // Reset all input values to 0 on disconnect (except working_hour and fixed address bytes)
+        const inputFields = [
+          'address_3','address_4',
+          'max_drive','max_turn','max_cow','accel','deccel','decel_min_ratio','cow_factor','channel','max_sonar_distance',
+          'min_sonar_distance','filtered_sonar','stop_mode','fixed_stop_threshold','sensor_alpha','coast','coast_release','coast_threshold','time_out'
+        ];
+        inputFields.forEach(f => {
+          const el = document.getElementById(f);
+          if (el) el.value = 0;
+        });
+        // Keep the fixed address values
+        document.getElementById('address_0').value = 67;
+        document.getElementById('address_1').value = 79;
+        document.getElementById('address_2').value = 87;
+        const workingHourInput = document.getElementById('working_hour');
+        if (workingHourInput) workingHourInput.value = '0.00 h';
+      } finally {
+        disconnectInProgress = false;
+      }
     }
 
     // Debug mode flag
@@ -1200,7 +1226,7 @@ label, legend, fieldset {
         showProgress(95, 'Saving...');
         await sendCmd('SAVE');
         showProgress(100, 'Complete!');
-        showMsg('Configuration saved to STM32 flash.', 'success');
+        showMsg('Configuration saved.', 'success');
         setTimeout(hideProgress, 1000);
       } catch (e) {
         showMsg('Failed to send/save: ' + e, 'error');
