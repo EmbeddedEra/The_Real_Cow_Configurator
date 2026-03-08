@@ -312,11 +312,11 @@ label, legend, fieldset {
         <!-- New Sonar Distance setting -->
         <div style="display: flex; align-items: center; width: 100%; gap: 1em;">
           <label for="max_sonar_distance" style="flex: 1 0 140px;">Max Sonar Distance</label>
-          <input id="max_sonar_distance" type="number" min="0" value="0" style="flex: 2 0 180px;" title="Maximum sonar distance (280-3000)">
+          <input id="max_sonar_distance" type="number" min="0" value="0" style="flex: 2 0 180px;" title="Maximum sonar distance (0-10000)">
         </div>
         <div style="display: flex; align-items: center; width: 100%; gap: 1em;">
           <label for="min_sonar_distance" style="flex: 1 0 140px;">Min Sonar Distance</label>
-          <input id="min_sonar_distance" type="number" min="0" value="0" style="flex: 2 0 180px;" title="Minimum sonar distance (0-3000)">
+          <input id="min_sonar_distance" type="number" min="0" value="0" style="flex: 2 0 180px;" title="Minimum sonar distance (0-10000)">
         </div>
         <div style="display: flex; align-items: center; width: 100%; gap: 1em;">
           <label for="filtered_sonar" style="flex: 1 0 140px;">Use Filtered Sonar</label>
@@ -328,7 +328,7 @@ label, legend, fieldset {
         </div>
         <div style="display: flex; align-items: center; width: 100%; gap: 1em;">
           <label for="fixed_stop_threshold" style="flex: 1 0 140px;">Fixed Stop Threshold</label>
-          <input id="fixed_stop_threshold" type="number" min="0" value="0" style="flex: 2 0 180px;" title="Fixed stop threshold value (0-3000)">
+          <input id="fixed_stop_threshold" type="number" min="0" value="0" style="flex: 2 0 180px;" title="Fixed stop threshold value (0-10000)">
         </div>
         <div style="display: flex; align-items: center; width: 100%; gap: 1em;">
           <label for="sensor_alpha" style="flex: 1 0 140px;">Sensor Alpha</label>
@@ -1150,11 +1150,11 @@ label, legend, fieldset {
         if (isNaN(decelMinRatio) || decelMinRatio < 0 || decelMinRatio > 1) invalidFields.push('decel_min_ratio');
         if (isNaN(cowFactor) || cowFactor < 0 || cowFactor > 1) invalidFields.push('cow_factor');
         if (isNaN(channel) || channel < 0 || channel > 255) invalidFields.push('channel');
-        if (isNaN(sonar) || sonar < 0 || sonar > 3000) invalidFields.push('max_sonar_distance');
-        if (isNaN(minSonar) || minSonar < 0 || minSonar > 3000) invalidFields.push('min_sonar_distance');
+        if (isNaN(sonar) || sonar < 0 || sonar > 10000) invalidFields.push('max_sonar_distance');
+        if (isNaN(minSonar) || minSonar < 0 || minSonar > 10000) invalidFields.push('min_sonar_distance');
         if (isNaN(filteredSonar) || filteredSonar < 0 || filteredSonar > 1) invalidFields.push('filtered_sonar');
         if (isNaN(stopMode) || stopMode < 0 || stopMode > 1) invalidFields.push('stop_mode');
-        if (isNaN(fixedStopThreshold) || fixedStopThreshold < 0 || fixedStopThreshold > 3000) invalidFields.push('fixed_stop_threshold');
+        if (isNaN(fixedStopThreshold) || fixedStopThreshold < 0 || fixedStopThreshold > 10000) invalidFields.push('fixed_stop_threshold');
         if (isNaN(sensorAlpha) || sensorAlpha < 0 || sensorAlpha > 1) invalidFields.push('sensor_alpha');
         if (isNaN(coast) || coast < 0 || coast > 1) invalidFields.push('coast');
         if (isNaN(coastRelease) || coastRelease < 0 || coastRelease > 1) invalidFields.push('coast_release');
@@ -1166,7 +1166,7 @@ label, legend, fieldset {
             rangeMsg.push('max_drive, max_turn, max_cow, coast_threshold: 0-1000');
           }
           if (invalidFields.includes('min_sonar_distance') || invalidFields.includes('fixed_stop_threshold') || invalidFields.includes('max_sonar_distance')) {
-            rangeMsg.push('min_sonar_distance, fixed_stop_threshold, max_sonar_distance: 0-3000');
+            rangeMsg.push('min_sonar_distance, fixed_stop_threshold, max_sonar_distance: 0-10000');
           }
           if (invalidFields.includes('filtered_sonar') || invalidFields.includes('stop_mode') || invalidFields.includes('coast') || invalidFields.includes('coast_release')) {
             rangeMsg.push('filtered_sonar, stop_mode, coast, coast_release: 0 or 1');
