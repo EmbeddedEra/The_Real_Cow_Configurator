@@ -726,9 +726,10 @@ label, legend, fieldset {
           if (lines.length && (lines[0].startsWith('COW_ROBOT_V') || lines[0].startsWith('COW_REMOTE_V'))) {
             versionLabel.textContent = 'Version: ' + lines[0];
             showMsg('Device identified.', 'success');
-            // Show sonar button when connected to COW_ROBOT
+            // Load config for both device types after successful identify
+            await loadFromDevice();
+            // Show robot-only tools when connected to COW_ROBOT
             if (lines[0].startsWith('COW_ROBOT_V')) {
-              await loadFromDevice();
               document.getElementById('showSonarBtn').style.display = '';
               document.getElementById('showMotorStateBtn').style.display = '';
             } else {
