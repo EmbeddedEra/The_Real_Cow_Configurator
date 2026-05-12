@@ -310,6 +310,10 @@ label, legend, fieldset {
           <label for="channel" style="flex: 1 0 140px;">Channel</label>
           <input id="channel" type="number" min="0" max="255" value="0" style="flex: 2 0 180px;" title="Channel value (0-255, hex: 0x4C=76 for Cow 1, 0x33=51 for Cow 2)">
         </div>
+        <div style="display: flex; align-items: center; width: 100%; gap: 1em;">
+          <label for="sensor_type" style="flex: 1 0 140px;">Sensor Type</label>
+          <select id="sensor_type" style="flex: 2 0 180px;" title="Select sonar sensor type"></select>
+        </div>
         <!-- New Sonar Distance setting -->
         <div style="display: flex; align-items: center; width: 100%; gap: 1em;">
           <label for="max_sonar_distance" style="flex: 1 0 140px;">Max Sonar Distance</label>
@@ -405,12 +409,12 @@ label, legend, fieldset {
           <div style="text-align: center;">
             <div style="font-size: 0.85em; color: #999; margin-bottom: 0.3em;">Raw Sonar</div>
             <div style="font-size: 2em; color: #0f0; font-weight: bold; font-family: monospace;" id="sonarRawValue">--</div>
-            <div style="font-size: 0.85em; color: #999;">mm</div>
+            <div style="font-size: 0.85em; color: #999;" id="sonarRawUnit">ft*10</div>
           </div>
           <div style="text-align: center;">
-            <div style="font-size: 0.85em; color: #999; margin-bottom: 0.3em;">Filtered Sonar</div>
-            <div style="font-size: 2em; color: #0ff; font-weight: bold; font-family: monospace;" id="sonarFilteredValue">--</div>
-            <div style="font-size: 0.85em; color: #999;">mm</div>
+            <div style="font-size: 0.85em; color: #999; margin-bottom: 0.3em;">Strength (TFMini)</div>
+            <div style="font-size: 2em; color: #0ff; font-weight: bold; font-family: monospace;" id="sonarStrengthValue">--</div>
+            <div style="font-size: 0.85em; color: #999;" id="sonarStrengthUnit">level</div>
           </div>
         </div>
       </div>
@@ -473,13 +477,39 @@ label, legend, fieldset {
     // - UI: <select id="presetSelect"> with option values preset ids, and buttons Apply/Save/Delete
 
     const PRESET_STORAGE_KEY = 'COW_PRESETS_V1';
+    const DEFAULT_SENSOR_TYPE = '2';
+    const SENSOR_TYPE_OPTIONS = [
+      { value: '1', label: 'ME007', define: 'SONAR_SENSOR_ME007' },
+      { value: '2', label: 'TFMINI', define: 'SONAR_SENSOR_TFMINI' },
+      { value: '0', label: 'NONE', define: 'SONAR_SENSOR_NONE' }
+    ];
+
+    function populateSensorTypeSelect() {
+      const select = document.getElementById('sensor_type');
+      if (!select) return;
+      select.innerHTML = '';
+      SENSOR_TYPE_OPTIONS.forEach(option => {
+        const opt = document.createElement('option');
+        opt.value = option.value;
+        opt.textContent = option.label;
+        select.appendChild(opt);
+      });
+      select.value = SENSOR_TYPE_OPTIONS.some(option => option.value === DEFAULT_SENSOR_TYPE)
+        ? DEFAULT_SENSOR_TYPE
+        : SENSOR_TYPE_OPTIONS[0].value;
+    }
+
+    function getValidSensorTypeValues() {
+      return new Set(SENSOR_TYPE_OPTIONS.map(option => parseInt(option.value, 10)));
+    }
+
     const BUILTIN_PRESETS = {
       'product_default': {
         label: 'Cow Product Default',
         values: {
           address_0: '67', address_1: '79', address_2: '87', address_3: '65', address_4: '68',
           max_drive: '1000', max_turn: '1000', max_cow: '500',
-          accel: '0.04', deccel: '0.08', decel_min_ratio: '1.0', cow_factor: '0.25', channel: '76', time_out: '2000', max_sonar_distance: '1000',
+          accel: '0.04', deccel: '0.08', decel_min_ratio: '1.0', cow_factor: '0.25', channel: '76', sensor_type: '2', time_out: '2000', max_sonar_distance: '1000',
           min_sonar_distance: '0', filtered_sonar: '0', stop_mode: '0', fixed_stop_threshold: '0', sensor_alpha: '0', coast: '0', coast_release: '0', coast_threshold: '0', nrf_auto_reply: '0', roping_cow_sw: '0'
         }
       },
@@ -488,7 +518,7 @@ label, legend, fieldset {
         values: {
           address_0: '67', address_1: '79', address_2: '87', address_3: '65', address_4: '68',
           max_drive: '1000', max_turn: '750', max_cow: '200',
-          accel: '0.05', deccel: '0.12', decel_min_ratio: '1.0', cow_factor: '0.5', channel: '76', time_out: '2000', max_sonar_distance: '1000',
+          accel: '0.05', deccel: '0.12', decel_min_ratio: '1.0', cow_factor: '0.5', channel: '76', sensor_type: '2', time_out: '2000', max_sonar_distance: '1000',
           min_sonar_distance: '0', filtered_sonar: '0', stop_mode: '0', fixed_stop_threshold: '0', sensor_alpha: '0', coast: '0', coast_release: '0', coast_threshold: '0', nrf_auto_reply: '0', roping_cow_sw: '0'
         }
       },
@@ -497,7 +527,7 @@ label, legend, fieldset {
         values: {
           address_0: '67', address_1: '79', address_2: '87', address_3: '65', address_4: '68',
           max_drive: '1000', max_turn: '1000', max_cow: '800',
-          accel: '0.06', deccel: '0.04', decel_min_ratio: '1.0', cow_factor: '0.75', channel: '76', time_out: '2000', max_sonar_distance: '1000',
+          accel: '0.06', deccel: '0.04', decel_min_ratio: '1.0', cow_factor: '0.75', channel: '76', sensor_type: '2', time_out: '2000', max_sonar_distance: '1000',
           min_sonar_distance: '0', filtered_sonar: '0', stop_mode: '0', fixed_stop_threshold: '0', sensor_alpha: '0', coast: '0', coast_release: '0', coast_threshold: '0', nrf_auto_reply: '0', roping_cow_sw: '0'
         }
       },
@@ -506,7 +536,7 @@ label, legend, fieldset {
         values: {
           address_0: '67', address_1: '79', address_2: '87', address_3: '65', address_4: '68',
           max_drive: '1000', max_turn: '750', max_cow: '800',
-          accel: '0.05', deccel: '0.12', decel_min_ratio: '0.35', cow_factor: '0.75', channel: '76', time_out: '2000', max_sonar_distance: '1000',
+          accel: '0.05', deccel: '0.12', decel_min_ratio: '0.35', cow_factor: '0.75', channel: '76', sensor_type: '2', time_out: '2000', max_sonar_distance: '1000',
           min_sonar_distance: '0', filtered_sonar: '0', stop_mode: '0', fixed_stop_threshold: '0', sensor_alpha: '0', coast: '1', coast_release: '0', coast_threshold: '20', nrf_auto_reply: '0', roping_cow_sw: '1'
         }
       }
@@ -567,7 +597,7 @@ label, legend, fieldset {
       if (!values) return;
       const ids = [
         'address_0','address_1','address_2','address_3','address_4',
-        'max_drive','max_turn','max_cow','accel','deccel','decel_min_ratio','cow_factor','channel','time_out','max_sonar_distance',
+        'max_drive','max_turn','max_cow','accel','deccel','decel_min_ratio','cow_factor','channel','sensor_type','time_out','max_sonar_distance',
         'min_sonar_distance','filtered_sonar','stop_mode','fixed_stop_threshold','sensor_alpha','coast','coast_release','coast_threshold','nrf_auto_reply','roping_cow_sw'
       ];
       ids.forEach(id => {
@@ -582,7 +612,7 @@ label, legend, fieldset {
     function getCurrentFormValues() {
       const ids = [
         'address_0','address_1','address_2','address_3','address_4',
-        'max_drive','max_turn','max_cow','accel','deccel','decel_min_ratio','cow_factor','channel','time_out','max_sonar_distance',
+        'max_drive','max_turn','max_cow','accel','deccel','decel_min_ratio','cow_factor','channel','sensor_type','time_out','max_sonar_distance',
         'min_sonar_distance','filtered_sonar','stop_mode','fixed_stop_threshold','sensor_alpha','coast','coast_release','coast_threshold','nrf_auto_reply','roping_cow_sw'
       ];
       const data = {};
@@ -710,7 +740,7 @@ label, legend, fieldset {
 
     const fields = [
       'address_0','address_1','address_2','address_3','address_4',
-      'max_drive','max_turn','max_cow','accel','deccel','decel_min_ratio','cow_factor','channel','max_sonar_distance',
+      'max_drive','max_turn','max_cow','accel','deccel','decel_min_ratio','cow_factor','channel','sensor_type','max_sonar_distance',
       'min_sonar_distance','filtered_sonar','stop_mode','fixed_stop_threshold','sensor_alpha','coast','coast_release','coast_threshold','nrf_auto_reply','roping_cow_sw','working_hour','time_out'
     ];
 
@@ -792,13 +822,15 @@ label, legend, fieldset {
         // Reset all input values to 0 on disconnect (except working_hour and fixed address bytes)
         const inputFields = [
           'address_3','address_4',
-          'max_drive','max_turn','max_cow','accel','deccel','decel_min_ratio','cow_factor','channel','max_sonar_distance',
+          'max_drive','max_turn','max_cow','accel','deccel','decel_min_ratio','cow_factor','channel','sensor_type','max_sonar_distance',
           'min_sonar_distance','filtered_sonar','stop_mode','fixed_stop_threshold','sensor_alpha','coast','coast_release','coast_threshold','nrf_auto_reply','roping_cow_sw','time_out'
         ];
         inputFields.forEach(f => {
           const el = document.getElementById(f);
           if (el) el.value = 0;
         });
+        const sensorTypeEl = document.getElementById('sensor_type');
+        if (sensorTypeEl) sensorTypeEl.value = DEFAULT_SENSOR_TYPE;
         // Keep the fixed address values
         document.getElementById('address_0').value = 67;
         document.getElementById('address_1').value = 79;
@@ -890,10 +922,20 @@ label, legend, fieldset {
     // Sonar monitoring variables
     let sonarReadingActive = false;
     let sonarReadInterval = null;
+    let sonarReadInFlight = false;
     let sonarChart = null;
-    let sonarData = { timestamps: [], raw: [], filtered: [] };
-    const SONAR_HISTORY_SECONDS = 60;
-    const SONAR_READ_INTERVAL = 100; // milliseconds
+    let sonarData = { timestamps: [], raw: [] };
+    const SONAR_HISTORY_SECONDS = 15;
+    const SONAR_READ_INTERVAL = 50; // 20 Hz target
+    const SONAR_READ_TIMEOUT_MS = 120;
+
+    function getDynamicSonarYMax() {
+      const values = sonarData.raw.filter(v => Number.isFinite(v));
+      if (!values.length) return 100;
+      const maxValue = Math.max(...values);
+      const padded = Math.ceil(maxValue * 1.1);
+      return Math.max(20, Math.ceil(padded / 5) * 5);
+    }
 
     function initSonarChart() {
       const ctx = document.getElementById('sonarChart').getContext('2d');
@@ -908,16 +950,6 @@ label, legend, fieldset {
               data: [],
               borderColor: '#0f0',
               backgroundColor: 'rgba(0, 255, 0, 0.1)',
-              borderWidth: 2,
-              fill: false,
-              pointRadius: 0,
-              tension: 0.1
-            },
-            {
-              label: 'Filtered Sonar',
-              data: [],
-              borderColor: '#0ff',
-              backgroundColor: 'rgba(0, 255, 255, 0.1)',
               borderWidth: 2,
               fill: false,
               pointRadius: 0,
@@ -937,13 +969,17 @@ label, legend, fieldset {
           },
           scales: {
             x: {
+              type: 'linear',
               display: true,
               grid: { color: '#333' },
               ticks: { 
                 color: '#999',
-                maxTicksLimit: 12
+                maxTicksLimit: 8,
+                callback: function(value) {
+                  return Number(value).toFixed(0);
+                }
               },
-              title: { display: true, text: 'Time (seconds ago)', color: '#c9c9c9' },
+              title: { display: true, text: 'Time (rolling 15 seconds)', color: '#c9c9c9' },
               min: 0,
               max: SONAR_HISTORY_SECONDS
             },
@@ -956,10 +992,10 @@ label, legend, fieldset {
                   return value.toLocaleString();
                 }
               },
-              title: { display: true, text: 'Distance (mm)', color: '#c9c9c9' },
+              title: { display: true, text: 'Distance (ft*10, 15ft6in=155)', color: '#c9c9c9' },
               beginAtZero: true,
               suggestedMin: 0,
-              suggestedMax: 4500
+              suggestedMax: 100
             }
           }
         }
@@ -969,54 +1005,85 @@ label, legend, fieldset {
     function updateSonarChart() {
       if (!sonarChart) return;
       const now = Date.now();
-      // Remove old data points (older than 60 seconds)
+      // Remove old data points outside the rolling time window.
       while (sonarData.timestamps.length > 0 && (now - sonarData.timestamps[0]) > SONAR_HISTORY_SECONDS * 1000) {
         sonarData.timestamps.shift();
         sonarData.raw.shift();
-        sonarData.filtered.shift();
       }
-      // Update chart - show time from oldest (0) to newest (up to 60 seconds)
-      const oldestTime = sonarData.timestamps.length > 0 ? sonarData.timestamps[0] : now;
-      sonarChart.data.labels = sonarData.timestamps.map(t => ((t - oldestTime) / 1000).toFixed(1));
-      sonarChart.data.datasets[0].data = sonarData.raw;
-      sonarChart.data.datasets[1].data = sonarData.filtered;
+      // Map each point into a fixed 0..SONAR_HISTORY_SECONDS rolling window.
+      const points = sonarData.timestamps.map((t, i) => {
+        const ageSeconds = (now - t) / 1000;
+        return {
+          x: SONAR_HISTORY_SECONDS - ageSeconds,
+          y: sonarData.raw[i]
+        };
+      }).filter(p => p.x >= 0 && p.x <= SONAR_HISTORY_SECONDS);
+
+      sonarChart.data.labels = [];
+      sonarChart.data.datasets[0].data = points;
+      sonarChart.options.scales.y.min = 0;
+      sonarChart.options.scales.y.max = getDynamicSonarYMax();
       sonarChart.update('none');
     }
 
     async function startSonarReading() {
       if (sonarReadingActive || !connected) return;
       sonarReadingActive = true;
-      sonarData = { timestamps: [], raw: [], filtered: [] };
+      sonarData = { timestamps: [], raw: [] };
       initSonarChart();
       document.getElementById('sonarStartBtn').style.display = 'none';
       document.getElementById('sonarStopBtn').style.display = '';
       debugLog('Sonar reading started');
       
       sonarReadInterval = setInterval(async () => {
-        if (!sonarReadingActive || !connected) return;
-        const lines = await sendCmd('SONAR_READ', true);
-        lines.forEach(line => {
-          if (line.includes('SONAR_RAW') && line.includes('FILTERED')) {
-            // Parse: SONAR_RAW=1234 FILTERED=1230
-            const rawMatch = line.match(/SONAR_RAW=(\d+)/);
-            const filtMatch = line.match(/FILTERED=(\d+)/);
-            if (rawMatch && filtMatch) {
-              const raw = parseInt(rawMatch[1]);
-              const filt = parseInt(filtMatch[1]);
+        if (!sonarReadingActive || !connected || sonarReadInFlight) return;
+        sonarReadInFlight = true;
+        try {
+          const lines = await sendCmd('SONAR_READ', true, {
+            delayMs: 0,
+            timeoutMs: SONAR_READ_TIMEOUT_MS
+          });
+          lines.forEach(line => {
+            if (line.startsWith('SONAR_DISABLED')) {
+              document.getElementById('sonarRawValue').textContent = '--';
+              document.getElementById('sonarStrengthValue').textContent = '--';
+              return;
+            }
+
+            // Supports both legacy and new firmware raw distance formats.
+            const rawMatch = line.match(/SONAR_RAW(?:_FTX10)?=(\d+)/);
+            if (rawMatch) {
+              const raw = parseInt(rawMatch[1], 10);
               sonarData.timestamps.push(Date.now());
               sonarData.raw.push(raw);
-              sonarData.filtered.push(filt);
               document.getElementById('sonarRawValue').textContent = raw;
-              document.getElementById('sonarFilteredValue').textContent = filt;
+              document.getElementById('sonarStrengthValue').textContent = '--';
+              updateSonarChart();
+              return;
+            }
+
+            // TFMini format: TFMINI_DIST_FTX10=155 STRENGTH=123
+            const tfminiDistMatch = line.match(/TFMINI_DIST_FTX10=(\d+)/);
+            const tfminiStrengthMatch = line.match(/STRENGTH=(\d+)/);
+            if (tfminiDistMatch && tfminiStrengthMatch) {
+              const dist = parseInt(tfminiDistMatch[1], 10);
+              const strength = parseInt(tfminiStrengthMatch[1], 10);
+              sonarData.timestamps.push(Date.now());
+              sonarData.raw.push(dist);
+              document.getElementById('sonarRawValue').textContent = dist;
+              document.getElementById('sonarStrengthValue').textContent = strength;
               updateSonarChart();
             }
-          }
-        });
+          });
+        } finally {
+          sonarReadInFlight = false;
+        }
       }, SONAR_READ_INTERVAL);
     }
 
     function stopSonarReading() {
       sonarReadingActive = false;
+      sonarReadInFlight = false;
       if (sonarReadInterval) clearInterval(sonarReadInterval);
       document.getElementById('sonarStartBtn').style.display = '';
       document.getElementById('sonarStopBtn').style.display = 'none';
@@ -1026,16 +1093,17 @@ label, legend, fieldset {
     // Delay between serial commands (in milliseconds)
     const COMMAND_DELAY = 250;
 
-    async function sendCmd(cmd, waitResponse=false) {
+    async function sendCmd(cmd, waitResponse=false, options = {}) {
       if (!connected || !writer) { showMsg('Not connected to serial.', 'error'); return []; }
       const framed = `@${cmd};\r\n`;
       debugLog(`→ SEND: ${framed.replace(/\r\n/g, '\\r\\n')}`);
       await writer.write(new TextEncoder().encode(framed));
-      await delay(COMMAND_DELAY); // Add delay after every command
+      const delayMs = Number.isFinite(options.delayMs) ? options.delayMs : COMMAND_DELAY;
+      if (delayMs > 0) await delay(delayMs);
       if (!waitResponse) return [];
       // Read lines until timeout or empty line
       let lines = [];
-      let timeout = 1000; // ms
+      let timeout = Number.isFinite(options.timeoutMs) ? options.timeoutMs : 1000; // ms
       let start = Date.now();
       let buffer = '';
       while (Date.now() - start < timeout) {
@@ -1156,6 +1224,8 @@ label, legend, fieldset {
         const nrfAutoReply = parseInt(document.getElementById('nrf_auto_reply').value);
         const ropingCowSw = parseInt(document.getElementById('roping_cow_sw').value);
         const channel = parseInt(document.getElementById('channel').value);
+        const sensorType = parseInt(document.getElementById('sensor_type').value);
+        const validSensorTypeValues = getValidSensorTypeValues();
         showProgress(10, 'Validating...');
         let invalidFields = [];
         if (isNaN(maxDrive) || maxDrive < 0 || maxDrive > 1000) invalidFields.push('max_drive');
@@ -1166,6 +1236,7 @@ label, legend, fieldset {
         if (isNaN(decelMinRatio) || decelMinRatio < 0 || decelMinRatio > 1) invalidFields.push('decel_min_ratio');
         if (isNaN(cowFactor) || cowFactor < 0 || cowFactor > 1) invalidFields.push('cow_factor');
         if (isNaN(channel) || channel < 0 || channel > 255) invalidFields.push('channel');
+        if (isNaN(sensorType) || !validSensorTypeValues.has(sensorType)) invalidFields.push('sensor_type');
         if (isNaN(sonar) || sonar < 0 || sonar > 10000) invalidFields.push('max_sonar_distance');
         if (isNaN(minSonar) || minSonar < 0 || minSonar > 10000) invalidFields.push('min_sonar_distance');
         if (isNaN(filteredSonar) || filteredSonar < 0 || filteredSonar > 1) invalidFields.push('filtered_sonar');
@@ -1195,12 +1266,16 @@ label, legend, fieldset {
           if (invalidFields.includes('channel')) {
             rangeMsg.push('channel: 0-255');
           }
+          if (invalidFields.includes('sensor_type')) {
+            const valid = SENSOR_TYPE_OPTIONS.map(option => `${option.value} (${option.define})`).join(', ');
+            rangeMsg.push('sensor_type valid values: ' + valid);
+          }
           msg = 'Values for ' + invalidFields.join(', ') + ' must be in range: ' + rangeMsg.join('; ');
           showMsg(msg, 'error');
           hideProgress();
           return;
         }
-        const totalCommands = 22;
+        const totalCommands = 23;
         let currentCommand = 0;
         const updateProgress = () => {
           currentCommand++;
@@ -1224,6 +1299,8 @@ label, legend, fieldset {
         await sendCmd(`COW_FACTOR=${cowFactor}`);
         updateProgress();
         await sendCmd(`CHANNEL=${channel}`);
+        updateProgress();
+        await sendCmd(`SENSOR_TYPE=${sensorType}`);
         updateProgress();
         await sendCmd(`MAX_SONAR_DISTANCE=${sonar}`);
         updateProgress();
@@ -1383,12 +1460,14 @@ function delay(ms) {
       // Set all input values to 0 on page load (except working_hour and fixed address bytes)
       const inputFields = [
         'address_3','address_4',
-        'max_drive','max_turn','max_cow','accel','deccel','decel_min_ratio','cow_factor','channel','nrf_auto_reply','roping_cow_sw','time_out'
+        'max_drive','max_turn','max_cow','accel','deccel','decel_min_ratio','cow_factor','channel','sensor_type','nrf_auto_reply','roping_cow_sw','time_out'
       ];
       inputFields.forEach(f => {
         const el = document.getElementById(f);
         if (el) el.value = 0;
       });
+      const sensorTypeEl = document.getElementById('sensor_type');
+      if (sensorTypeEl) sensorTypeEl.value = DEFAULT_SENSOR_TYPE;
       // Set the fixed address values
       document.getElementById('address_0').value = 67;
       document.getElementById('address_1').value = 79;
@@ -1407,8 +1486,10 @@ function delay(ms) {
       if (versionFooter && metaVersion) {
         versionFooter.textContent = 'Version: ' + metaVersion.getAttribute('content');
       }
-  // Wire presets UI
-  wirePresetUI();
+      // Build sensor type dropdown from a single source of truth.
+      populateSensorTypeSelect();
+      // Wire presets UI
+      wirePresetUI();
     };
 
     openFlasherBtn.onclick = async () => {
