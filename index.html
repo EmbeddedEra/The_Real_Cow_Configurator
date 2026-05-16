@@ -336,6 +336,10 @@ label, legend, fieldset {
           <input id="fixed_stop_threshold" type="number" min="0" value="0" style="flex: 2 0 180px;" title="Fixed stop threshold value (0-10000)">
         </div>
         <div style="display: flex; align-items: center; width: 100%; gap: 1em;">
+          <label for="sonar_stop_assert_ms" style="flex: 1 0 140px;">Sonar Stop Assert MS</label>
+          <input id="sonar_stop_assert_ms" type="number" min="0" max="5000" value="0" style="flex: 2 0 180px;" title="Sonar stop assert delay in milliseconds (0-5000)">
+        </div>
+        <div style="display: flex; align-items: center; width: 100%; gap: 1em;">
           <label for="sensor_alpha" style="flex: 1 0 140px;">Sensor Alpha</label>
           <input id="sensor_alpha" type="number" step="0.01" min="0" max="1" value="0" style="flex: 2 0 180px;" title="Sensor alpha value (0-1)">
         </div>
@@ -510,7 +514,7 @@ label, legend, fieldset {
           address_0: '67', address_1: '79', address_2: '87', address_3: '65', address_4: '68',
           max_drive: '1000', max_turn: '1000', max_cow: '500',
           accel: '0.04', deccel: '0.08', decel_min_ratio: '1.0', cow_factor: '0.25', channel: '76', sensor_type: '2', time_out: '2000', max_sonar_distance: '1000',
-          min_sonar_distance: '0', filtered_sonar: '0', stop_mode: '0', fixed_stop_threshold: '0', sensor_alpha: '0', coast: '0', coast_release: '0', coast_threshold: '0', nrf_auto_reply: '0', roping_cow_sw: '0'
+          min_sonar_distance: '0', filtered_sonar: '0', stop_mode: '0', fixed_stop_threshold: '0', sonar_stop_assert_ms: '0', sensor_alpha: '0', coast: '0', coast_release: '0', coast_threshold: '0', nrf_auto_reply: '0', roping_cow_sw: '0'
         }
       },
       'cow_horse_product': {
@@ -519,7 +523,7 @@ label, legend, fieldset {
           address_0: '67', address_1: '79', address_2: '87', address_3: '65', address_4: '68',
           max_drive: '1000', max_turn: '750', max_cow: '200',
           accel: '0.05', deccel: '0.12', decel_min_ratio: '1.0', cow_factor: '0.5', channel: '76', sensor_type: '2', time_out: '2000', max_sonar_distance: '1000',
-          min_sonar_distance: '0', filtered_sonar: '0', stop_mode: '0', fixed_stop_threshold: '0', sensor_alpha: '0', coast: '0', coast_release: '0', coast_threshold: '0', nrf_auto_reply: '0', roping_cow_sw: '0'
+          min_sonar_distance: '0', filtered_sonar: '0', stop_mode: '0', fixed_stop_threshold: '0', sonar_stop_assert_ms: '0', sensor_alpha: '0', coast: '0', coast_release: '0', coast_threshold: '0', nrf_auto_reply: '0', roping_cow_sw: '0'
         }
       },
       'cow_retrofit': {
@@ -528,7 +532,7 @@ label, legend, fieldset {
           address_0: '67', address_1: '79', address_2: '87', address_3: '65', address_4: '68',
           max_drive: '1000', max_turn: '1000', max_cow: '800',
           accel: '0.06', deccel: '0.04', decel_min_ratio: '1.0', cow_factor: '0.75', channel: '76', sensor_type: '2', time_out: '2000', max_sonar_distance: '1000',
-          min_sonar_distance: '0', filtered_sonar: '0', stop_mode: '0', fixed_stop_threshold: '0', sensor_alpha: '0', coast: '0', coast_release: '0', coast_threshold: '0', nrf_auto_reply: '0', roping_cow_sw: '0'
+          min_sonar_distance: '0', filtered_sonar: '0', stop_mode: '0', fixed_stop_threshold: '0', sonar_stop_assert_ms: '0', sensor_alpha: '0', coast: '0', coast_release: '0', coast_threshold: '0', nrf_auto_reply: '0', roping_cow_sw: '0'
         }
       },
       'team_roper': {
@@ -537,7 +541,7 @@ label, legend, fieldset {
           address_0: '67', address_1: '79', address_2: '87', address_3: '65', address_4: '68',
           max_drive: '1000', max_turn: '750', max_cow: '800',
           accel: '0.05', deccel: '0.12', decel_min_ratio: '0.35', cow_factor: '0.75', channel: '76', sensor_type: '2', time_out: '2000', max_sonar_distance: '1000',
-          min_sonar_distance: '0', filtered_sonar: '0', stop_mode: '0', fixed_stop_threshold: '0', sensor_alpha: '0', coast: '1', coast_release: '0', coast_threshold: '20', nrf_auto_reply: '0', roping_cow_sw: '1'
+          min_sonar_distance: '0', filtered_sonar: '0', stop_mode: '0', fixed_stop_threshold: '0', sonar_stop_assert_ms: '100', sensor_alpha: '0', coast: '1', coast_release: '0', coast_threshold: '20', nrf_auto_reply: '0', roping_cow_sw: '1'
         }
       }
     };
@@ -598,7 +602,7 @@ label, legend, fieldset {
       const ids = [
         'address_0','address_1','address_2','address_3','address_4',
         'max_drive','max_turn','max_cow','accel','deccel','decel_min_ratio','cow_factor','channel','sensor_type','time_out','max_sonar_distance',
-        'min_sonar_distance','filtered_sonar','stop_mode','fixed_stop_threshold','sensor_alpha','coast','coast_release','coast_threshold','nrf_auto_reply','roping_cow_sw'
+        'min_sonar_distance','filtered_sonar','stop_mode','fixed_stop_threshold','sonar_stop_assert_ms','sensor_alpha','coast','coast_release','coast_threshold','nrf_auto_reply','roping_cow_sw'
       ];
       ids.forEach(id => {
         if (values[id] !== undefined) {
@@ -613,7 +617,7 @@ label, legend, fieldset {
       const ids = [
         'address_0','address_1','address_2','address_3','address_4',
         'max_drive','max_turn','max_cow','accel','deccel','decel_min_ratio','cow_factor','channel','sensor_type','time_out','max_sonar_distance',
-        'min_sonar_distance','filtered_sonar','stop_mode','fixed_stop_threshold','sensor_alpha','coast','coast_release','coast_threshold','nrf_auto_reply','roping_cow_sw'
+        'min_sonar_distance','filtered_sonar','stop_mode','fixed_stop_threshold','sonar_stop_assert_ms','sensor_alpha','coast','coast_release','coast_threshold','nrf_auto_reply','roping_cow_sw'
       ];
       const data = {};
       ids.forEach(id => {
@@ -741,7 +745,7 @@ label, legend, fieldset {
     const fields = [
       'address_0','address_1','address_2','address_3','address_4',
       'max_drive','max_turn','max_cow','accel','deccel','decel_min_ratio','cow_factor','channel','sensor_type','max_sonar_distance',
-      'min_sonar_distance','filtered_sonar','stop_mode','fixed_stop_threshold','sensor_alpha','coast','coast_release','coast_threshold','nrf_auto_reply','roping_cow_sw','working_hour','time_out'
+      'min_sonar_distance','filtered_sonar','stop_mode','fixed_stop_threshold','sonar_stop_assert_ms','sensor_alpha','coast','coast_release','coast_threshold','nrf_auto_reply','roping_cow_sw','working_hour','time_out'
     ];
 
     connectBtn.onclick = async () => {
@@ -823,7 +827,7 @@ label, legend, fieldset {
         const inputFields = [
           'address_3','address_4',
           'max_drive','max_turn','max_cow','accel','deccel','decel_min_ratio','cow_factor','channel','sensor_type','max_sonar_distance',
-          'min_sonar_distance','filtered_sonar','stop_mode','fixed_stop_threshold','sensor_alpha','coast','coast_release','coast_threshold','nrf_auto_reply','roping_cow_sw','time_out'
+          'min_sonar_distance','filtered_sonar','stop_mode','fixed_stop_threshold','sonar_stop_assert_ms','sensor_alpha','coast','coast_release','coast_threshold','nrf_auto_reply','roping_cow_sw','time_out'
         ];
         inputFields.forEach(f => {
           const el = document.getElementById(f);
@@ -1171,6 +1175,8 @@ label, legend, fieldset {
             document.getElementById('stop_mode').value = value;
           } else if (key === 'fixed_stop_threshold') {
             document.getElementById('fixed_stop_threshold').value = value;
+          } else if (key === 'sonar_stop_assert_ms') {
+            document.getElementById('sonar_stop_assert_ms').value = value;
           } else if (key === 'sensor_alpha') {
             document.getElementById('sensor_alpha').value = value;
           } else if (key === 'coast') {
@@ -1217,6 +1223,7 @@ label, legend, fieldset {
         const filteredSonar = parseInt(document.getElementById('filtered_sonar').value);
         const stopMode = parseInt(document.getElementById('stop_mode').value);
         const fixedStopThreshold = parseInt(document.getElementById('fixed_stop_threshold').value);
+        const sonarStopAssertMs = parseInt(document.getElementById('sonar_stop_assert_ms').value);
         const sensorAlpha = parseFloat(document.getElementById('sensor_alpha').value);
         const coast = parseInt(document.getElementById('coast').value);
         const coastRelease = parseInt(document.getElementById('coast_release').value);
@@ -1242,6 +1249,7 @@ label, legend, fieldset {
         if (isNaN(filteredSonar) || filteredSonar < 0 || filteredSonar > 1) invalidFields.push('filtered_sonar');
         if (isNaN(stopMode) || stopMode < 0 || stopMode > 1) invalidFields.push('stop_mode');
         if (isNaN(fixedStopThreshold) || fixedStopThreshold < 0 || fixedStopThreshold > 10000) invalidFields.push('fixed_stop_threshold');
+        if (isNaN(sonarStopAssertMs) || sonarStopAssertMs < 0 || sonarStopAssertMs > 5000) invalidFields.push('sonar_stop_assert_ms');
         if (isNaN(sensorAlpha) || sensorAlpha < 0 || sensorAlpha > 1) invalidFields.push('sensor_alpha');
         if (isNaN(coast) || coast < 0 || coast > 1) invalidFields.push('coast');
         if (isNaN(coastRelease) || coastRelease < 0 || coastRelease > 1) invalidFields.push('coast_release');
@@ -1256,6 +1264,9 @@ label, legend, fieldset {
           }
           if (invalidFields.includes('min_sonar_distance') || invalidFields.includes('fixed_stop_threshold') || invalidFields.includes('max_sonar_distance')) {
             rangeMsg.push('min_sonar_distance, fixed_stop_threshold, max_sonar_distance: 0-10000');
+          }
+          if (invalidFields.includes('sonar_stop_assert_ms')) {
+            rangeMsg.push('sonar_stop_assert_ms: 0-5000');
           }
           if (invalidFields.includes('filtered_sonar') || invalidFields.includes('stop_mode') || invalidFields.includes('coast') || invalidFields.includes('coast_release') || invalidFields.includes('nrf_auto_reply') || invalidFields.includes('roping_cow_sw')) {
             rangeMsg.push('filtered_sonar, stop_mode, coast, coast_release, nrf_auto_reply, roping_cow_sw: 0 or 1');
@@ -1275,7 +1286,7 @@ label, legend, fieldset {
           hideProgress();
           return;
         }
-        const totalCommands = 23;
+        const totalCommands = 24;
         let currentCommand = 0;
         const updateProgress = () => {
           currentCommand++;
@@ -1311,6 +1322,8 @@ label, legend, fieldset {
         await sendCmd(`STOP_MODE=${stopMode}`);
         updateProgress();
         await sendCmd(`FIXED_STOP_THRESHOLD=${fixedStopThreshold}`);
+        updateProgress();
+        await sendCmd(`SONAR_STOP_ASSERT_MS=${sonarStopAssertMs}`);
         updateProgress();
         await sendCmd(`SENSOR_ALPHA=${sensorAlpha}`);
         updateProgress();
