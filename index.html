@@ -423,6 +423,22 @@ label, legend, fieldset {
             <label for="play_stop_delay_ms" style="flex: 1 0 140px;">Play Stop Delay MS</label>
             <input id="play_stop_delay_ms" type="number" min="0" max="60000" value="2000" style="flex: 2 0 180px;" title="Playback stop delay in milliseconds (0-60000)">
           </div>
+          <div style="display: flex; align-items: center; width: 100%; gap: 1em;">
+            <label for="pivot_max" style="flex: 1 0 140px;">Pivot Max Power</label>
+            <input id="pivot_max" type="number" min="115" max="1000" step="15" value="325" style="flex: 2 0 180px;" title="Max motor turn value when pivoting with drive at zero. Steps of 15 from 100 (115-1000, default 325)">
+          </div>
+          <div style="display: flex; align-items: center; width: 100%; gap: 1em;">
+            <label for="slow_max" style="flex: 1 0 140px;">Slow Max Power</label>
+            <input id="slow_max" type="number" min="350" max="1000" step="50" value="1000" style="flex: 2 0 180px;" title="Max motor drive value in slow speed. Steps of 50 from 300 (350-1000, default 1000)">
+          </div>
+          <div style="display: flex; align-items: center; width: 100%; gap: 1em;">
+            <label for="fast_max" style="flex: 1 0 140px;">Fast Max Power</label>
+            <input id="fast_max" type="number" min="800" max="1000" step="50" value="1000" style="flex: 2 0 180px;" title="Max motor drive value in fast speed. Steps of 50 from 750 (800-1000, default 1000)">
+          </div>
+          <div style="display: flex; align-items: center; width: 100%; gap: 1em;">
+            <label for="slow_mode_max" style="flex: 1 0 140px;">Slow Mode Max Power</label>
+            <input id="slow_mode_max" type="number" min="110" max="1000" step="10" value="150" style="flex: 2 0 180px;" title="Max motor drive value in slow mode. Steps of 10 from 100 (110-1000, default 150)">
+          </div>
         </div>
         <div style="display: flex; align-items: center; width: 100%; gap: 1em;">
           <label for="working_hour" style="flex: 1 0 140px;">Hour Meter</label>
@@ -824,7 +840,7 @@ label, legend, fieldset {
     const fields = [
       'address_0','address_1','address_2','address_3','address_4',
       'max_drive','max_turn','max_cow','accel','deccel','decel_min_ratio','decel_zero_cutoff','cow_factor','channel','sensor_type','max_sonar_distance',
-      'min_sonar_distance','filtered_sonar','stop_mode','fixed_stop_threshold','sonar_stop_assert_ms','sensor_alpha','coast','coast_release','coast_threshold','nrf_auto_reply','roping_cow_sw','working_hour','time_out','play_stop_delay_ms',
+      'min_sonar_distance','filtered_sonar','stop_mode','fixed_stop_threshold','sonar_stop_assert_ms','sensor_alpha','coast','coast_release','coast_threshold','nrf_auto_reply','roping_cow_sw','working_hour','time_out','play_stop_delay_ms','pivot_max','slow_max','fast_max','slow_mode_max',
       'tfmini_obstacle_distance_ft','tfmini_min_signal_strength','tfmini_max_distance_jump_ft','tfmini_required_good_frames','tfmini_sensor_min_valid_ft','tfmini_sensor_max_valid_ft'
     ];
 
@@ -1372,16 +1388,25 @@ label, legend, fieldset {
           let invalidFields = [];
           if (isNaN(channel) || channel < 1 || channel > 126) invalidFields.push('channel');
           if (isNaN(playStopDelayMs) || playStopDelayMs < 0 || playStopDelayMs > 60000) invalidFields.push('play_stop_delay_ms');
+          // Power caps in motor units: [id, USB command, min]. Max is always 1000.
+          // Firmware rounds down to its step (15/50/50/10) and echoes the applied value.
+          const levelCaps = [['pivot_max','PIVOT_MAX',115],['slow_max','SLOW_MAX',350],['fast_max','FAST_MAX',800],['slow_mode_max','SLOW_MODE_MAX',110]];
+          const capValues = {};
+          levelCaps.forEach(([id, , min]) => {
+            capValues[id] = parseInt(document.getElementById(id).value);
+            if (isNaN(capValues[id]) || capValues[id] < min || capValues[id] > 1000) invalidFields.push(id);
+          });
           if (invalidFields.length > 0) {
             let rangeMsg = [];
             if (invalidFields.includes('channel')) rangeMsg.push('channel: 1-126');
             if (invalidFields.includes('play_stop_delay_ms')) rangeMsg.push('play_stop_delay_ms: 0-60000');
+            levelCaps.forEach(([id, , min]) => { if (invalidFields.includes(id)) rangeMsg.push(`${id}: ${min}-1000`); });
             showMsg('Values for ' + invalidFields.join(', ') + ' must be in range: ' + rangeMsg.join('; '), 'error');
             hideProgress();
             return;
           }
 
-          const totalCommands = 4;
+          const totalCommands = 4 + levelCaps.length;
           let currentCommand = 0;
           const updateProgress = () => {
             currentCommand++;
@@ -1395,6 +1420,10 @@ label, legend, fieldset {
           updateProgress();
           await sendCmd(`PLAY_STOP_DELAY_MS=${playStopDelayMs}`);
           updateProgress();
+          for (const [id, cmd] of levelCaps) {
+            await sendCmd(`${cmd}=${capValues[id]}`);
+            updateProgress();
+          }
           showProgress(95, 'Saving...');
           await sendCmd('SAVE');
           updateProgress();
