@@ -424,19 +424,19 @@ label, legend, fieldset {
             <input id="play_stop_delay_ms" type="number" min="0" max="60000" value="2000" style="flex: 2 0 180px;" title="Playback stop delay in milliseconds (0-60000)">
           </div>
           <div style="display: flex; align-items: center; width: 100%; gap: 1em;">
-            <label for="pivot_max" style="flex: 1 0 140px;">Pivot Max Power</label>
+            <label for="pivot_max" style="flex: 1 0 140px;">Pivot Max Power<br><small style="opacity:0.7;">default 325 · step 15 · 115-1000</small></label>
             <input id="pivot_max" type="number" min="115" max="1000" step="15" value="325" style="flex: 2 0 180px;" title="Max motor turn value when pivoting with drive at zero. Steps of 15 from 100 (115-1000, default 325)">
           </div>
           <div style="display: flex; align-items: center; width: 100%; gap: 1em;">
-            <label for="slow_max" style="flex: 1 0 140px;">Slow Max Power</label>
+            <label for="slow_max" style="flex: 1 0 140px;">Slow Max Power<br><small style="opacity:0.7;">default 1000 · step 50 · 350-1000</small></label>
             <input id="slow_max" type="number" min="350" max="1000" step="50" value="1000" style="flex: 2 0 180px;" title="Max motor drive value in slow speed. Steps of 50 from 300 (350-1000, default 1000)">
           </div>
           <div style="display: flex; align-items: center; width: 100%; gap: 1em;">
-            <label for="fast_max" style="flex: 1 0 140px;">Fast Max Power</label>
+            <label for="fast_max" style="flex: 1 0 140px;">Fast Max Power<br><small style="opacity:0.7;">default 1000 · step 50 · 800-1000</small></label>
             <input id="fast_max" type="number" min="800" max="1000" step="50" value="1000" style="flex: 2 0 180px;" title="Max motor drive value in fast speed. Steps of 50 from 750 (800-1000, default 1000)">
           </div>
           <div style="display: flex; align-items: center; width: 100%; gap: 1em;">
-            <label for="slow_mode_max" style="flex: 1 0 140px;">Slow Mode Max Power</label>
+            <label for="slow_mode_max" style="flex: 1 0 140px;">Slow Mode Max Power<br><small style="opacity:0.7;">default 150 · step 10 · 110-1000</small></label>
             <input id="slow_mode_max" type="number" min="110" max="1000" step="10" value="150" style="flex: 2 0 180px;" title="Max motor drive value in slow mode. Steps of 10 from 100 (110-1000, default 150)">
           </div>
         </div>
