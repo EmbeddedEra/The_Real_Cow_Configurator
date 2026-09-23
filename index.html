@@ -419,6 +419,15 @@ label, legend, fieldset {
         </div>
         <div id="remoteSection" class="device-section is-disabled">
           <h3>Remote Settings</h3>
+          <div id="remoteModeRow" hidden>
+            <label for="mode">Operating mode</label>
+            <select id="mode" disabled style="width:100%;font-size:16px;">
+              <option value="NORMAL">Normal</option>
+              <option value="RECORDING">Recording</option>
+            </select>
+            <p id="remoteModeStatus" role="status" aria-live="polite"></p>
+            <p><small>Save, then power the remote off and on to activate a different mode.</small></p>
+          </div>
           <div style="display: flex; align-items: center; width: 100%; gap: 1em;">
             <label for="play_stop_delay_ms" style="flex: 1 0 140px;">Play Stop Delay MS</label>
             <input id="play_stop_delay_ms" type="number" min="0" max="60000" value="2000" style="flex: 2 0 180px;" title="Playback stop delay in milliseconds (0-60000)">
@@ -837,6 +846,67 @@ label, legend, fieldset {
     const checkUpdateBtn = document.getElementById('checkUpdateBtn');
     const openFlasherBtn = document.getElementById('openFlasherBtn');
 
+    let remoteModeSupported = false;
+    let activeRemoteMode = null;
+    let savedRemoteMode = null;
+    let configOperation = false;
+    const validRemoteMode = value => value === 'NORMAL' || value === 'RECORDING';
+    function resetRemoteMode() {
+      remoteModeSupported = false;
+      activeRemoteMode = savedRemoteMode = null;
+      document.getElementById('mode').value = 'NORMAL';
+      renderRemoteMode();
+    }
+    function renderRemoteMode() {
+      const select = document.getElementById('mode');
+      document.getElementById('remoteModeRow').hidden = !remoteModeSupported;
+      select.disabled = !remoteModeSupported || configOperation;
+      let message = '';
+      if (remoteModeSupported) {
+        message = `Active: ${activeRemoteMode}. Saved: ${savedRemoteMode}.`;
+        if (select.value !== savedRemoteMode) message += ' Selection not saved.';
+        if (activeRemoteMode !== savedRemoteMode) message += ' Restart the remote to activate the saved mode.';
+      }
+      document.getElementById('remoteModeStatus').textContent = message;
+    }
+    function readRemoteMode(lines) {
+      const values = Object.fromEntries(lines.filter(l => l.includes('=')).map(l => l.split('=', 2)));
+      const hasMode = ['MODE','ACTIVE_MODE','SAVED_MODE'].some(k => k in values);
+      remoteModeSupported = false;
+      if (connectedDeviceType === 'remote' && hasMode) {
+        if (!lines.includes('DUMP_END') || !['MODE','ACTIVE_MODE','SAVED_MODE'].every(k => validRemoteMode(values[k]))) {
+          resetRemoteMode();
+          throw new Error('Incomplete operating-mode response. Reconnect and load settings.');
+        }
+        remoteModeSupported = true;
+        activeRemoteMode = values.ACTIVE_MODE;
+        savedRemoteMode = values.SAVED_MODE;
+        document.getElementById('mode').value = values.MODE;
+      } else { activeRemoteMode = savedRemoteMode = null; }
+      renderRemoteMode();
+    }
+    function modeNotice() {
+      return remoteModeSupported && activeRemoteMode !== savedRemoteMode
+        ? ' Restart the remote to activate the saved mode.' : '';
+    }
+    async function checkedConfigCommand(cmd) {
+      return sendCmd(cmd, remoteModeSupported, remoteModeSupported
+        ? { expect: [`${cmd}_OK`], timeoutMs: 3000 } : {});
+    }
+    async function withConfigOperation(action) {
+      if (configOperation) return;
+      configOperation = true;
+      for (const id of ['saveBtn','loadBtn','resetBtn','importBtn']) document.getElementById(id).disabled = true;
+      renderRemoteMode();
+      try { await action(); return true; }
+      catch (error) { showMsg('Configuration failed: ' + error.message, 'error'); hideProgress(); return false; }
+      finally {
+        configOperation = false;
+        for (const id of ['saveBtn','loadBtn','resetBtn','importBtn']) document.getElementById(id).disabled = false;
+        renderRemoteMode();
+      }
+    }
+
     const fields = [
       'address_0','address_1','address_2','address_3','address_4',
       'max_drive','max_turn','max_cow','accel','deccel','decel_min_ratio','decel_zero_cutoff','cow_factor','channel','sensor_type','max_sonar_distance',
@@ -881,6 +951,8 @@ label, legend, fieldset {
           await port.open({ baudRate: 115200 });
           writer = port.writable.getWriter();
           reader = port.readable.getReader();
+          resetRemoteMode();
+          startSerialSession();
           connected = true;
           connectBtn.textContent = 'Disconnect';
           versionLabel.textContent = 'Version: Connecting...';
@@ -894,9 +966,9 @@ label, legend, fieldset {
             applyDeviceMode(connectedDeviceType);
             showMsg('Device identified.', 'success');
             // Load config for both device types after successful identify
-            await loadFromDevice();
+            if (!await withConfigOperation(() => loadFromDevice(false))) throw new Error('Could not load device configuration.');
             if (connectedDeviceType === 'remote') {
-              showMsg('Remote connected. Configure and upload settings.', 'success');
+              showMsg('Remote connected. Configure and upload settings.' + modeNotice(), 'success');
             }
           } else {
             versionLabel.textContent = 'Version: Not connected';
@@ -933,7 +1005,9 @@ label, legend, fieldset {
       try {
         if (sonarReadingActive) stopSonarReading();
         if (motorStateReadingActive) stopMotorStateReading();
-        if (reader) { try { await reader.cancel(); } catch {} reader = null; }
+        stopSerialSession();
+        resetRemoteMode();
+        if (reader) { try { await reader.cancel(); } catch {} try { reader.releaseLock(); } catch {} reader = null; }
         if (writer) { try { writer.releaseLock(); } catch {} writer = null; }
         if (port) { try { await port.close(); } catch {} port = null; }
         connected = false;
@@ -1034,6 +1108,7 @@ label, legend, fieldset {
     // Motor state monitoring variables
     let motorStateReadingActive = false;
     let motorStateReadInterval = null;
+    let motorStateReadInFlight = false;
 
     async function startMotorStateReading() {
       if (motorStateReadingActive || !connected) return;
@@ -1043,8 +1118,10 @@ label, legend, fieldset {
       debugLog('Motor state reading started');
       
       motorStateReadInterval = setInterval(async () => {
-        if (!motorStateReadingActive || !connected) return;
-        const lines = await sendCmd('MOTOR_STATE', true);
+        if (!motorStateReadingActive || !connected || motorStateReadInFlight || configOperation) return;
+        motorStateReadInFlight = true;
+        try {
+        const lines = await sendCmd('MOTOR_STATE', true, { delayMs: 0, timeoutMs: 200 });
         lines.forEach(line => {
           if (line.includes('MOTOR_RIGHT') && line.includes('MOTOR_LEFT') && line.includes('MOTOR_COW')) {
             // Parse: MOTOR_RIGHT=123.45 MOTOR_LEFT=456.78 MOTOR_COW=789.00
@@ -1061,6 +1138,8 @@ label, legend, fieldset {
             }
           }
         });
+        } catch(error) { stopMotorStateReading(); showMsg(error.message, 'error'); }
+        finally { motorStateReadInFlight = false; }
       }, 100);
     }
 
@@ -1189,7 +1268,7 @@ label, legend, fieldset {
       debugLog('Sonar reading started');
       
       sonarReadInterval = setInterval(async () => {
-        if (!sonarReadingActive || !connected || sonarReadInFlight) return;
+        if (!sonarReadingActive || !connected || sonarReadInFlight || configOperation) return;
         sonarReadInFlight = true;
         try {
           const lines = await sendCmd('SONAR_READ', true, {
@@ -1228,7 +1307,7 @@ label, legend, fieldset {
               updateSonarChart();
             }
           });
-        } finally {
+        } catch(error) { stopSonarReading(); showMsg(error.message, 'error'); } finally {
           sonarReadInFlight = false;
         }
       }, SONAR_READ_INTERVAL);
@@ -1246,37 +1325,90 @@ label, legend, fieldset {
     // Delay between serial commands (in milliseconds)
     const COMMAND_DELAY = 250;
 
-    async function sendCmd(cmd, waitResponse=false, options = {}) {
-      if (!connected || !writer) { showMsg('Not connected to serial.', 'error'); return []; }
+    // One reader owns the connection for its entire lifetime. Command timeouts
+    // never abandon a pending read that could steal the next reply.
+    let serialSession = null;
+    function startSerialSession() {
+      const session = { reader, writer, lines: [], partial: '', error: null, queue: Promise.resolve() };
+      serialSession = session;
+      (async () => {
+        const decoder = new TextDecoder();
+        try {
+          while (serialSession === session) {
+            const { value, done } = await session.reader.read();
+            if (done) throw new Error('Serial connection closed. Reconnect the device.');
+            session.partial += decoder.decode(value, { stream: true });
+            let at;
+            while ((at = session.partial.indexOf('\n')) !== -1) {
+              const line = session.partial.slice(0, at).replace(/\r/g, '').trim();
+              session.partial = session.partial.slice(at + 1);
+              if (line) session.lines.push(line);
+            }
+            if (session.lines.length > 512 || session.partial.length > 8192)
+              throw new Error('Unexpected serial data. Reconnect the device.');
+          }
+        } catch (error) { session.error = error; }
+      })();
+    }
+    function stopSerialSession() {
+      if (serialSession) serialSession.error = new Error('Disconnected.');
+      serialSession = null;
+    }
+    function sendCmd(cmd, waitResponse = false, options = {}) {
+      const session = serialSession;
+      if (!connected || !session) return Promise.reject(new Error('Not connected to serial.'));
+      const work = () => transactSerial(session, cmd, waitResponse, options);
+      const result = session.queue.then(work);
+      session.queue = result.catch(() => {});
+      return result;
+    }
+    async function transactSerial(session, cmd, waitResponse, options) {
+      const check = () => {
+        if (serialSession !== session || session.error || !connected)
+          throw session.error || new Error('Connection changed.');
+      };
+      check();
+      session.lines.length = 0; // unsolicited/stale complete replies are not acknowledgements
+      session.partial = '';
       const framed = `@${cmd};\r\n`;
       debugLog(`→ SEND: ${framed.replace(/\r\n/g, '\\r\\n')}`);
-      await writer.write(new TextEncoder().encode(framed));
-      const delayMs = Number.isFinite(options.delayMs) ? options.delayMs : COMMAND_DELAY;
-      if (delayMs > 0) await delay(delayMs);
-      if (!waitResponse) return [];
-      // Read lines until timeout or empty line
-      let lines = [];
-      let timeout = Number.isFinite(options.timeoutMs) ? options.timeoutMs : 1000; // ms
-      let start = Date.now();
-      let buffer = '';
-      while (Date.now() - start < timeout) {
-        try {
-          const { value, done } = await reader.read();
-          if (done) break;
-          buffer += new TextDecoder().decode(value);
-          let idx;
-          while ((idx = buffer.indexOf('\n')) !== -1) {
-            let line = buffer.slice(0, idx).replace(/\r/g, '').trim();
-            buffer = buffer.slice(idx+1);
-            if (line) {
-              lines.push(line);
-              debugLog(`← RECV: ${escapeForDisplay(line)}`);
-            }
-          }
-          if (lines.length > 0 && buffer === '') break;
-        } catch (e) { break; }
+      const timeout = options.timeoutMs ?? (waitResponse ? 3000 : 500);
+      let writeTimer;
+      try {
+        await Promise.race([
+          session.writer.write(new TextEncoder().encode(framed)),
+          new Promise((_, reject) => { writeTimer=setTimeout(() => reject(new Error('Serial write timed out.')), timeout); })
+        ]);
+      } catch(error) { session.error=error; throw error; }
+      finally { clearTimeout(writeTimer); }
+      const started = Date.now();
+      let lastLine = started;
+      const lines = [];
+      const quietMs = options.quietMs ?? Math.min(180, timeout / 2);
+      const minimum = options.delayMs ?? COMMAND_DELAY;
+      while (Date.now() - started < timeout) {
+        check();
+        for (const line of session.lines.splice(0)) {
+          lines.push(line); lastLine = Date.now();
+          debugLog(`← RECV: ${escapeForDisplay(line)}`);
+          if (/(?:^|_)(?:ERROR|BUSY)(?:$|[ =:])|^ERR(?:$|[ :])/i.test(line)) throw new Error(line);
+        }
+        const elapsed = Date.now() - started;
+        const quiet = !session.partial && Date.now() - lastLine >= quietMs;
+        if (options.expect && options.expect.every(line => lines.includes(line))) return lines;
+        if (!options.expect) {
+          if (cmd === 'DUMP' && lines.includes('DUMP_END')) return lines;
+          const extendedDump = cmd === 'DUMP' && lines.some(l => /^(ACTIVE_MODE|MODE|SAVED_MODE)=/.test(l));
+          if (!extendedDump && quiet && elapsed >= minimum && (!waitResponse || lines.length)) return lines;
+        }
+        await delay(10);
       }
-      return lines;
+      if (!options.expect && cmd !== 'DUMP' && cmd !== 'IDENTIFY') return lines;
+      // A missing required response makes subsequent reply attribution unsafe.
+      // Require reconnect, rather than reusing a possible late SAVE_OK.
+      const error = new Error(`${cmd.split('=')[0]} response timed out. Reconnect and load settings to check the device.`);
+      session.error = error;
+      throw error;
     }
 
     function showProgress(percent, text) {
@@ -1295,13 +1427,14 @@ label, legend, fieldset {
       bar.textContent = '0%';
     }
 
-    async function loadFromDevice() {
+    async function loadFromDevice(reload = true) {
       if (!connected) { showMsg('Not connected.', 'error'); return; }
       showProgress(10, 'Loading...');
-      await sendCmd('LOAD');
+      if (reload) await checkedConfigCommand('LOAD');
       showProgress(40, 'Requesting data...');
       const lines = await sendCmd('DUMP', true, { timeoutMs: 3000 });
-      if (!lines.length) { showMsg('No response from device.', 'error'); hideProgress(); return; }
+      if (!lines.some(l => l.startsWith('ADDR=')) || !lines.some(l => l.startsWith('CHANNEL='))) throw new Error('Incomplete configuration response.');
+      readRemoteMode(lines);
       showProgress(70, 'Processing data...');
       lines.forEach(line => {
         if (line.startsWith('ADDR=')) {
@@ -1371,11 +1504,11 @@ label, legend, fieldset {
       });
       updateAddressMatchLabel();
       showProgress(100, 'Complete!');
-      showMsg('Configuration loaded.', 'success');
+      showMsg('Configuration loaded.' + modeNotice(), 'success');
       setTimeout(hideProgress, 1000);
     }
 
-    document.getElementById('saveBtn').onclick = async () => {
+    document.getElementById('saveBtn').onclick = () => withConfigOperation(async () => {
       if (!connected) { showMsg('Not connected.', 'error'); return; }
       try {
         showProgress(5, 'Preparing...');
@@ -1406,7 +1539,9 @@ label, legend, fieldset {
             return;
           }
 
-          const totalCommands = 4 + levelCaps.length;
+          const requestedMode = document.getElementById('mode').value;
+          if (remoteModeSupported && !validRemoteMode(requestedMode)) throw new Error('Invalid operating mode.');
+          const totalCommands = 4 + levelCaps.length + (remoteModeSupported ? 1 : 0);
           let currentCommand = 0;
           const updateProgress = () => {
             currentCommand++;
@@ -1414,6 +1549,10 @@ label, legend, fieldset {
             showProgress(percent, `Uploading... ${currentCommand}/${totalCommands}`);
           };
 
+          if (remoteModeSupported) {
+            await sendCmd(`MODE=${requestedMode}`, true, { expect: [`MODE=${requestedMode}`, 'SAVE_AND_RESTART_REQUIRED'] });
+            updateProgress();
+          }
           await sendCmd(`ADDR=${addr.join(':')}`);
           updateProgress();
           await sendCmd(`CHANNEL=${channel}`);
@@ -1425,10 +1564,14 @@ label, legend, fieldset {
             updateProgress();
           }
           showProgress(95, 'Saving...');
-          await sendCmd('SAVE');
+          await checkedConfigCommand('SAVE');
           updateProgress();
+          if (remoteModeSupported) {
+            await loadFromDevice();
+            if (!remoteModeSupported || savedRemoteMode !== requestedMode) throw new Error('Saved mode verification failed.');
+          }
           showProgress(100, 'Complete!');
-          showMsg('Remote configuration saved.', 'success');
+          showMsg(remoteModeSupported ? 'Remote configuration saved.' + modeNotice() : 'Remote configuration sent. Load settings to verify.', 'success');
           setTimeout(hideProgress, 1000);
           return;
         }
@@ -1636,21 +1779,22 @@ label, legend, fieldset {
         showMsg('Failed to send/save: ' + e, 'error');
         hideProgress();
       }
-    };
+    });
 
-    document.getElementById('loadBtn').onclick = loadFromDevice;
+    document.getElementById('loadBtn').onclick = () => withConfigOperation(() => loadFromDevice());
 
-    document.getElementById('resetBtn').onclick = async () => {
-      if (!connected) { showMsg('Not connected.', 'error'); return; }
-      await sendCmd('RESET');
-      showMsg('Device reset command sent.', 'success');
-      // Reload values from device after reset
+    document.getElementById('resetBtn').onclick = () => withConfigOperation(async () => {
+      if (!connected) throw new Error('Not connected.');
+      await checkedConfigCommand('RESET');
       await loadFromDevice();
-    };
+      showMsg('Default settings restored.' + modeNotice(), 'success');
+    });
+    document.getElementById('mode').onchange = renderRemoteMode;
 
     document.getElementById('exportBtn').onclick = () => {
       let data = {};
       fields.forEach(f => { data[f] = document.getElementById(f).value; });
+      if (remoteModeSupported && validRemoteMode(document.getElementById('mode').value)) data.mode = document.getElementById('mode').value;
       const blob = new Blob([JSON.stringify(data, null, 2)], {type: 'application/json'});
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -1671,6 +1815,7 @@ label, legend, fieldset {
       reader.onload = function(ev) {
         try {
           const data = JSON.parse(ev.target.result);
+          if (data.mode !== undefined && !validRemoteMode(data.mode)) throw new Error('Invalid operating mode in file.');
           // Backward compatibility: map old *_cm keys used by older exported files.
           if (data.tfmini_obstacle_distance_ft === undefined && data.tfmini_obstacle_distance_cm !== undefined) {
             data.tfmini_obstacle_distance_ft = data.tfmini_obstacle_distance_cm;
@@ -1687,7 +1832,9 @@ label, legend, fieldset {
           fields.forEach(f => {
             if (data[f] !== undefined) document.getElementById(f).value = data[f];
           });
-          showMsg('Configuration imported.', 'success');
+          if (remoteModeSupported && data.mode !== undefined) document.getElementById('mode').value = data.mode;
+          renderRemoteMode();
+          showMsg('Configuration imported. Save to apply changes.' + (data.mode !== undefined && !remoteModeSupported ? ' Operating mode ignored: this device does not report mode support.' : ''), 'success');
         } catch (e) {
           showMsg('Failed to import: ' + e, 'error');
         }
